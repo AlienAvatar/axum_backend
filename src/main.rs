@@ -1,48 +1,56 @@
 use axum::{response::{IntoResponse, Html}, routing::{get, post}, Router, Json, extract::Multipart, http::StatusCode};
 use tokio::{self, fs, io::AsyncWriteExt};
+
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
-use crate::models::user::Person;
-
-use crate::service::login::get_person;
-use crate::service::login::create_user;
-use crate::mapper::userMapper::insert_user;
-//use crate::service::login::add_person;
-
-mod service;
-mod models;
-mod mapper;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 //mongoDB
-extern crate mongodb;
-use mongodb::bson::doc;
-use mongodb::{Client, options::ClientOptions};
+use mongodb::{bson::{doc, Document}, Collection};
+use mongodb::{Client, options::ClientOptions, options::FindOptions};
+//log
+use log::info;
 
-#[tokio::main]
-async fn main() {
+mod user;
+mod error;
+mod route;
+mod note;
+mod db;
 
-    let app = Router::new()
-        .route("/login/getUser", get(get_person))
-        .route("/login/addUser", post(create_user))
-        .route("/upload_page", get(upload_page))
-        .route("/do_upload", post(do_upload));
-    //let app = Router::new().route("/", get(home));
+use std::sync::Arc;
+use db::DB;
 
-    // run it
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:10001")
-        .await
-        .unwrap();
-    println!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+use axum::http::{
+    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    HeaderValue, Method,
+};
+use dotenv::dotenv;
+use error::MyError;
+use route::create_router;
+use tower_http::cors::CorsLayer;
+
+pub struct AppState {
+    db: DB,
 }
 
-async fn insert_document(client: &Client, db_name: &str, coll_name: &str) {
-    let db = client.database(db_name);
-    let coll = db.collection(coll_name);
-    let doc = doc! { "name": "John", "age": 30 };
-    coll.insert_one(doc, None).await.unwrap();
+#[tokio::main]
+async fn main() -> Result<(), MyError> {
+    dotenv().ok();
+
+    let db = DB::init().await?;
+
+    let cors = CorsLayer::new()
+        .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+        .allow_credentials(true)
+        .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
+
+    let app = create_router(Arc::new(AppState { db: db.clone() })).layer(cors);
+
+    println!("🚀 Server started successfully");
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+
+    axum::serve(listener, app).await.unwrap();
+
+    Ok(())
 }
 
 async fn upload_page() -> impl IntoResponse {
@@ -57,12 +65,6 @@ async fn upload_page() -> impl IntoResponse {
         "#        
     )
 }
-
-async fn create_collection(client: &Client, db_name: &str, coll_name: &str) {
-    let db = client.database(db_name);
-    db.create_collection(coll_name, None).await.unwrap();
-}
-
 
 async fn do_upload(mut multipart: Multipart) -> impl IntoResponse {
 
@@ -80,6 +82,29 @@ async fn do_upload(mut multipart: Multipart) -> impl IntoResponse {
         }
         
     }
-
     Html("upload successful")
+}
+
+
+
+fn init_logger() {
+    use chrono::Local;
+    use std::io::Write;
+
+    let env = env_logger::Env::default()
+        .filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
+    // 设置日志打印格式
+    env_logger::Builder::from_env(env)
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} {} [{}] {}",
+                Local::now().format("%Y-%m-%d %H:%M:%S"),
+                record.level(),
+                record.module_path().unwrap_or("<unnamed>"),
+                &record.args()
+            )
+        })
+        .init();
+    info!("env_logger initialized.");
 }
