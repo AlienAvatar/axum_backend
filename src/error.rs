@@ -41,7 +41,7 @@ impl Into<(axum::http::StatusCode, Json<serde_json::Value>)> for MyError {
                 StatusCode::CONFLICT,
                 ErrorResponse {
                     status: "fail",
-                    message: "Note with that title already exists".to_string(),
+                    message: "Note with that username already exists".to_string(),
                 },
             ),
             MyError::InvalidIDError(id) => (

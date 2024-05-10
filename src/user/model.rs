@@ -7,14 +7,22 @@ use serde::{Deserialize, Serialize};
 pub struct UserModel {
     #[serde(rename = "_id")]
     pub id: ObjectId,
-    pub name: String,
-    pub age: i32,
-    // pub title: String,
-    // pub content: String,
-    // pub category: Option<String>,
-    // pub published: Option<bool>,
-    // #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
-    // pub createdAt: DateTime<Utc>,
-    // #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
-    // pub updatedAt: DateTime<Utc>,
+    pub username: String,
+    pub nickname: String,
+    pub password: String,
+    pub email: String,
+    pub is_delete: Option<bool>,
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub created_at: DateTime<Utc>,
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub updated_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+   pub sub: String,
+   pub company: String,
+   #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+   pub created_at: DateTime<Utc>,
+}
+

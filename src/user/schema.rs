@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-
+use chrono::{DateTime, Utc};
+use mongodb::bson::{self};
 #[derive(Deserialize, Debug, Default)]
 pub struct FilterOptions {
     pub page: Option<usize>,
@@ -12,23 +13,33 @@ pub struct ParamOptions {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateNoteSchema {
-    pub title: String,
-    pub content: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub published: Option<bool>,
+pub struct CreateUserSchema {
+    pub username: String,
+    pub nickname: String,
+    pub password: String,
+    pub email: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateNoteSchema {
+pub struct UpdateUserSchema {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    pub password: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub content: Option<String>,
+    pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub published: Option<bool>,
+    pub nickname: Option<String>,
+    pub is_delete : Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct VaildUserSchema {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DeleteUserSchema {
+    pub is_delete : Option<bool>,
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub updated_at: DateTime<Utc>,
 }

@@ -2,13 +2,16 @@ use crate::error::MyError;
 use crate::note::response::{NoteData, NoteListResponse, NoteResponse, SingleNoteResponse};
 use crate::user::response::{UserData, UserListResponse, UserResponse, SingleUserResponse};
 use crate::{
-    error::MyError::*, note::model::NoteModel, user::model::UserModel, note::schema::CreateNoteSchema, note::schema::UpdateNoteSchema,
+    error::MyError::*, note::model::NoteModel, user::model::UserModel, 
+    user::schema::{CreateUserSchema, UpdateUserSchema, DeleteUserSchema}, 
+    note::schema::{CreateNoteSchema, UpdateNoteSchema},
 };
 use chrono::prelude::*;
 use futures::StreamExt;
 use mongodb::bson::{doc, oid::ObjectId, Document};
 use mongodb::options::{FindOneAndUpdateOptions, FindOptions, IndexOptions, ReturnDocument};
 use mongodb::{bson, options::ClientOptions, Client, Collection, IndexModel};
+use serde::Serialize;
 use std::str::FromStr;
 
 #[derive(Clone, Debug)]
@@ -72,6 +75,67 @@ impl DB {
             status: "success",
             results: json_result.len(),
             users: json_result,
+        })
+    }
+
+    pub async fn create_user(&self, body: &CreateUserSchema) -> Result<SingleUserResponse> {
+
+        let user_moel = UserModel {
+            id: ObjectId::new(),
+            username: body.username.to_owned(),
+            nickname: body.nickname.to_owned(),
+            password: body.password.to_owned(),
+            email: body.email.to_owned(),
+            is_delete:  Some(false),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        //把username作为构建唯一索引
+        let options = IndexOptions::builder().unique(false).build();
+        let index = IndexModel::builder()
+            .keys(doc! { &user_moel.username: 1 })
+            .options(options)
+            .build();
+        match self.user_collection.create_index(index, None).await {
+            Ok(_) => {}
+            Err(e) => return Err(MongoQueryError(e)),
+        };
+
+        //插入数据库
+        let insert_result = match self.user_collection.insert_one(&user_moel, None).await {
+            Ok(result) => result,
+            Err(e) => {
+                if e.to_string()
+                    .contains("E11000 duplicate key error collection")
+                {
+                    return Err(MongoDuplicateError(e));
+                }
+                return Err(MongoQueryError(e));
+            }
+        };
+
+        //生成id
+        let new_id = insert_result
+            .inserted_id
+            .as_object_id()
+            .expect("issue with new _id");
+        //检测是否有重复id
+        let user_doc = match self
+            .user_collection
+            .find_one(doc! {"_id": new_id}, None)
+            .await
+        {
+            Ok(Some(doc)) => doc,
+            Ok(None) => return Err(NotFoundError(new_id.to_string())),
+            Err(e) => return Err(MongoQueryError(e)),
+        };
+
+        Ok(SingleUserResponse {
+            status: "success",
+            data: UserData {
+                user: self.doc_to_user(&user_doc)?,
+            },
         })
     }
 
@@ -151,6 +215,27 @@ impl DB {
         })
     }
 
+    pub async fn get_user(&self, username: &str) -> Result<SingleUserResponse> {
+        //let oid = ObjectId::from_str(id).map_err(|_| InvalidIDError(id.to_owned()))?;
+
+        let user_doc = self
+            .user_collection
+            .find_one(doc! {"username": username }, None)
+            .await
+            .map_err(MongoQueryError)?;
+
+        match user_doc {
+            Some(doc) => {
+                let user = self.doc_to_user(&doc)?;
+                Ok(SingleUserResponse {
+                    status: "success",
+                    data: UserData { user },
+                })
+            }
+            None => Err(NotFoundError(username.to_string())),
+        }
+    }
+
     pub async fn get_note(&self, id: &str) -> Result<SingleNoteResponse> {
         let oid = ObjectId::from_str(id).map_err(|_| InvalidIDError(id.to_owned()))?;
 
@@ -200,6 +285,62 @@ impl DB {
         }
     }
 
+    pub async fn update_user(&self, username: &str, body: &UpdateUserSchema) -> Result<SingleUserResponse> {
+        let update = doc! {
+            "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .return_document(ReturnDocument::After)
+            .build();
+    
+        if let Some(doc) = self
+            .user_collection
+            .find_one_and_update(doc! {"username": username}, update, options)
+            .await
+            .map_err(MongoQueryError)?
+        {
+            let user = self.doc_to_user(&doc)?;
+            let user_response = SingleUserResponse {
+                status: "success",
+                data: UserData { user },
+            };
+            Ok(user_response)
+        } else {
+            Err(NotFoundError(username.to_string()))
+        }
+    }
+    
+    pub async fn delete_user(&self, username: &str) -> Result<SingleUserResponse> {
+        let user_moel = DeleteUserSchema {
+            is_delete:  Some(true),
+            updated_at: Utc::now(),
+        };
+
+        //delete不应该有参数
+        let update = doc! {
+            "$set": bson::to_bson(&user_moel).map_err(MongoSerializeBsonError)?,
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .return_document(ReturnDocument::After)
+            .build();
+    
+        if let Some(doc) = self
+            .user_collection
+            .find_one_and_update(doc! {"username": username}, update, options)
+            .await
+            .map_err(MongoQueryError)?
+        {
+            let user = self.doc_to_user(&doc)?;
+            let user_response = SingleUserResponse {
+                status: "success",
+                data: UserData { user },
+            };
+            Ok(user_response)
+        } else {
+            Err(NotFoundError(username.to_string()))
+        }
+    }
+
     pub async fn delete_note(&self, id: &str) -> Result<()> {
         let oid = ObjectId::from_str(id).map_err(|_| InvalidIDError(id.to_owned()))?;
         let filter = doc! {"_id": oid };
@@ -219,8 +360,13 @@ impl DB {
     fn doc_to_user(&self, user: &UserModel) -> Result<UserResponse> {
         let user_response = UserResponse {
             id: user.id.to_hex(),
-            name: user.name.to_owned(),
-            age: user.age.to_owned(),
+            username: user.username.to_owned(),
+            nickname: user.nickname.to_owned(),
+            password: user.password.to_owned(),
+            email: user.email.to_owned(),
+            is_delete: user.is_delete,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
         };
 
         Ok(user_response)
@@ -262,5 +408,51 @@ impl DB {
         Ok(doc_with_dates)
     }
 
-   
+    fn create_user_document(
+        &self,
+        body: &CreateUserSchema,
+    ) -> Result<bson::Document> {
+        let serialized_data = bson::to_bson(body).map_err(MongoSerializeBsonError)?;
+        
+        let document = serialized_data.as_document().unwrap();
+        let datetime = Utc::now();
+
+        let mut doc_with_dates = doc! {
+            "username" : body.username.to_owned(),
+            "password" : body.password.to_owned(),
+            "email" : body.email.to_owned(),
+            "nickname" : body.nickname.to_owned(),
+            "is_delete": false,
+            "created_at": datetime,
+            "updated_at": datetime,
+        };
+        doc_with_dates.extend(document.clone());
+
+        Ok(doc_with_dates)
+    }
+
+    fn update_user_document(
+        &self,
+        username: &str,
+        body: &UpdateUserSchema,
+    ) -> Result<bson::Document> {
+        let serialized_data = bson::to_bson(body).map_err(MongoSerializeBsonError)?;
+        // let document = doc! {
+        //     "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
+        // };
+        let document = serialized_data.as_document().unwrap();
+        let datetime = Utc::now();
+
+        let mut doc_with_dates = doc! {
+            "username" : username,
+            "password" : body.password.to_owned(),
+            "email" : body.email.to_owned(),
+            "nickname" : body.nickname.to_owned(),
+            "is_delete": false,
+            "updated_at": datetime,
+        };
+        doc_with_dates.extend(document.clone());
+
+        Ok(doc_with_dates)
+    }
 }

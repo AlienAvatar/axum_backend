@@ -11,10 +11,13 @@ pub struct GenericResponse {
 #[derive(Serialize, Debug)]
 pub struct UserResponse {
     pub id: String,
-    pub name: String,
-    pub age: i32,
-    // pub createdAt: DateTime<Utc>,
-    // pub updatedAt: DateTime<Utc>,
+    pub username: String,
+    pub nickname: String,
+    pub password: String,
+    pub email: String,
+    pub is_delete: Option<bool>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Debug)]
@@ -33,4 +36,17 @@ pub struct UserListResponse {
     pub status: &'static str,
     pub results: usize,
     pub users: Vec<UserResponse>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct TokenMessageResponse {
+    pub code : u8,
+    pub token : String,
+    pub message : String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct MessageResponse {
+    pub code : u8,
+    pub message : String,
 }

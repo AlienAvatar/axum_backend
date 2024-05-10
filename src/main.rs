@@ -7,8 +7,6 @@ use serde::{Deserialize, Serialize};
 use mongodb::{bson::{doc, Document}, Collection};
 use mongodb::{Client, options::ClientOptions, options::FindOptions};
 //log
-use log::info;
-
 mod user;
 mod error;
 mod route;
@@ -46,7 +44,7 @@ async fn main() -> Result<(), MyError> {
     let app = create_router(Arc::new(AppState { db: db.clone() })).layer(cors);
 
     println!("🚀 Server started successfully");
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:10001").await.unwrap();
 
     axum::serve(listener, app).await.unwrap();
 
@@ -106,5 +104,5 @@ fn init_logger() {
             )
         })
         .init();
-    info!("env_logger initialized.");
+    log::info!("env_logger initialized.");
 }

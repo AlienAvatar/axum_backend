@@ -18,7 +18,13 @@ serde_json = "1.0.96"
 thiserror = "1.0.40"
 tokio = { version = "1.27.0", features = ["full"] }
 tower-http = { version = "0.5.0", features = ["cors"] }
-
+# jwt生成及验证
+jsonwebtoken = "7.2"
+# uuid生成
+uuid = { version = "1.4.0", features = ["serde", "v4"] }
+# 用于帮助解析请求头
+headers = "0.3"
+bcrypt = "0.10"
 
 # log
 log = "0.4.0"
