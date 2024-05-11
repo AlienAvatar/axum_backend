@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserModel {
     #[serde(rename = "_id")]
-    pub id: ObjectId,
+    pub id: uuid::Uuid,
     pub username: String,
     pub nickname: String,
     pub password: String,
@@ -19,10 +19,9 @@ pub struct UserModel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
-   pub sub: String,
-   pub company: String,
-   #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
-   pub created_at: DateTime<Utc>,
+pub struct TokenClaims {
+    pub sub: String,
+    pub iat: usize,
+    pub exp: usize,
 }
 

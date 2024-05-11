@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use axum::{
     extract::{Path, Query, State},
-    http::{StatusCode, HeaderMap},
-    response::IntoResponse,
+    http::{header, StatusCode, HeaderMap},
+    response::{Response, IntoResponse},
     Json,
 };
 
@@ -11,13 +11,65 @@ use crate::{
     user::{
         response::{TokenMessageResponse, MessageResponse},
         schema::{CreateUserSchema, FilterOptions, UpdateUserSchema, VaildUserSchema},
-        model::{Claims}
+        model::{TokenClaims}
     },
+    token::{self, TokenDetails},
     AppState,
 };
-use serde::{Deserialize, Serialize};
 use jsonwebtoken::{decode, encode, Algorithm, EncodingKey, Header};
 use chrono::{DateTime, Utc};
+use axum_extra::extract::cookie::{Cookie, SameSite, CookieJar};
+use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use rand_core::OsRng;
+use serde_json::json;
+use redis::AsyncCommands;
+
+fn generate_token(
+    user_id: uuid::Uuid,
+    max_age: i64,
+    private_key: String,
+) -> Result<TokenDetails, (StatusCode, Json<serde_json::Value>)> {
+    token::generate_jwt_token(user_id, max_age, private_key).map_err(|e| {
+        let error_response = serde_json::json!({
+            "status": "error",
+            "message": format!("error generating token: {}", e),
+        });
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+    })
+}
+
+async fn save_token_data_to_redis(
+    data: &Arc<AppState>,
+    token_details: &TokenDetails,
+    max_age: i64,
+) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+    let mut redis_client: redis::aio::Connection = data
+        .redis_client
+        .get_async_connection()
+        .await
+        .map_err(|e| {
+            let error_response = serde_json::json!({
+                "status": "error",
+                "message": format!("Redis error: {}", e),
+            });
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        })?;
+    redis_client
+        .set_ex(
+            token_details.token_uuid.to_string(),
+            token_details.user_id.to_string(),
+            (max_age * 60) as u64,
+        )
+        .await
+        .map_err(|e| {
+            let error_response = serde_json::json!({
+                "status": "error",
+                "message": format_args!("{}", e),
+            });
+            (StatusCode::UNPROCESSABLE_ENTITY, Json(error_response))
+        })?;
+    Ok(())
+}
 
 pub async fn user_list_handler(
     opts: Option<Query<FilterOptions>>,
@@ -43,14 +95,23 @@ pub async fn create_user_handler(
     State(app_state): State<Arc<AppState>>,
     Json(body): Json<CreateUserSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let salt = SaltString::generate(&mut OsRng);
+    let hashed_password = Argon2::default()
+    .hash_password(body.password.as_bytes(), &salt)
+    .map_err(|e| {
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": format!("Error while hashing password: {}", e),
+        });
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+    })
+    .map(|hash| hash.to_string())?;
+    
 
-    // let password_hash = encryption::hash_password(&body.password)
-    //         .await
-    //         .map_err(internal_error_dyn)?;
-
+    //&body.password = hashed_password;
     match app_state
         .db
-        .create_user(&body)
+        .create_user(&body, hashed_password)
         .await.map_err(MyError::from) 
     {
         Ok(res) => Ok((StatusCode::CREATED, Json(res))),
@@ -81,28 +142,68 @@ pub async fn valid_user_handler(
                 //生成token
                 let password_key = res.data.user.password.clone();
                 let username_key = res.data.user.username.clone();
-                
-                let my_claims = Claims {
-                    sub: password_key.to_owned(),
-                    company: username_key.to_owned(),
-                    created_at: Utc::now(),
+                let user_id = res.data.user.id;
+
+                let is_valid = match PasswordHash::new(&username_key) {
+                    Ok(parsed_hash) => Argon2::default()
+                        .verify_password(body.password.as_bytes(), &parsed_hash)
+                        .map_or(false, |_| true),
+                    Err(_) => false,
                 };
 
-                let token_str = encode(&Header::default(), &my_claims, &EncodingKey::from_secret("secret".as_ref())).unwrap();
-                let message = TokenMessageResponse {
-                    code: 200,
-                    token: token_str,
-                    message: "success".to_string(),
-                };
+                if !is_valid {
+                    let error_response = serde_json::json!({
+                        "status": "fail",
+                        "message": "Invalid email or password"
+                    });
+                    return Err((StatusCode::BAD_REQUEST, Json(error_response)));
+                }
                 
-                Ok((StatusCode::ACCEPTED, Json(message)))
+                let access_token_details = generate_token(
+                    user_id,
+                    app_state.env.access_token_max_age,
+                    app_state.env.access_token_private_key.to_owned(),
+                )?;
+                let refresh_token_details = generate_token(
+                    user_id,
+                    app_state.env.refresh_token_max_age,
+                    app_state.env.refresh_token_private_key.to_owned(),
+                )?;
+
+               
+                save_token_data_to_redis(&app_state, &access_token_details, app_state.env.access_token_max_age).await?;
+                save_token_data_to_redis(
+                    &app_state,
+                    &refresh_token_details,
+                    app_state.env.refresh_token_max_age,
+                )
+                .await?;
+            
+                let mut response = Response::new(
+                    json!({"status": "success", "access_token": access_token_details.token.unwrap()})
+                        .to_string(),
+                );
+
+                let mut headers = HeaderMap::new();
+                headers.append(
+                    header::SET_COOKIE,
+                    header::HeaderValue::from_static("access_token_details"),
+                );
+               
+                headers.append(
+                    header::CONTENT_TYPE,
+                     header::HeaderValue::from_static("application/json")
+                );
+                response.headers_mut().extend(headers);
+            
+                Ok(response)
             }else{
-                let message = TokenMessageResponse {
-                    code: 200,
-                    token: "".to_string(),
-                    message: "failure".to_string(),
-                };
-                Ok((StatusCode::BAD_REQUEST, Json(message)))
+                let mut response = Response::new(json!({"code": 5000, "status" : "failure", "token": ""}).to_string());    
+                response
+                .headers_mut()
+                .insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
+
+                Ok(response)
             }
         }
         Err(e) => {
@@ -168,6 +269,19 @@ pub async fn delete_user_handler(
     }
 }
 
-pub async fn protected(token: String){
-    
+pub async fn logout_user_handler() 
+    -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+
+    let cookie = Cookie::build("token", "")
+        .path("/")
+        .max_age(time::Duration::hours(-1))
+        .same_site(SameSite::Lax)
+        .http_only(true)
+        .finish();
+
+    let mut response = Response::new(json!({"status": "success"}).to_string());
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());
+    Ok(response)
 }

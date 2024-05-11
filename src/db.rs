@@ -11,8 +11,8 @@ use futures::StreamExt;
 use mongodb::bson::{doc, oid::ObjectId, Document};
 use mongodb::options::{FindOneAndUpdateOptions, FindOptions, IndexOptions, ReturnDocument};
 use mongodb::{bson, options::ClientOptions, Client, Collection, IndexModel};
-use serde::Serialize;
 use std::str::FromStr;
+use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct DB {
@@ -78,13 +78,13 @@ impl DB {
         })
     }
 
-    pub async fn create_user(&self, body: &CreateUserSchema) -> Result<SingleUserResponse> {
-
+    pub async fn create_user(&self, body: &CreateUserSchema, hashed_password: String) -> Result<SingleUserResponse> {
+       
         let user_moel = UserModel {
-            id: ObjectId::new(),
+            id: Uuid::new_v4(),
             username: body.username.to_owned(),
             nickname: body.nickname.to_owned(),
-            password: body.password.to_owned(),
+            password: hashed_password,
             email: body.email.to_owned(),
             is_delete:  Some(false),
             created_at: Utc::now(),
@@ -359,7 +359,7 @@ impl DB {
 
     fn doc_to_user(&self, user: &UserModel) -> Result<UserResponse> {
         let user_response = UserResponse {
-            id: user.id.to_hex(),
+            id: user.id,
             username: user.username.to_owned(),
             nickname: user.nickname.to_owned(),
             password: user.password.to_owned(),
@@ -408,51 +408,97 @@ impl DB {
         Ok(doc_with_dates)
     }
 
-    fn create_user_document(
-        &self,
-        body: &CreateUserSchema,
-    ) -> Result<bson::Document> {
-        let serialized_data = bson::to_bson(body).map_err(MongoSerializeBsonError)?;
+    // fn create_user_document(
+    //     &self,
+    //     body: &CreateUserSchema,
+    // ) -> Result<bson::Document> {
+    //     let serialized_data = bson::to_bson(body).map_err(MongoSerializeBsonError)?;
         
-        let document = serialized_data.as_document().unwrap();
-        let datetime = Utc::now();
+    //     let document = serialized_data.as_document().unwrap();
+    //     let datetime = Utc::now();
 
-        let mut doc_with_dates = doc! {
-            "username" : body.username.to_owned(),
-            "password" : body.password.to_owned(),
-            "email" : body.email.to_owned(),
-            "nickname" : body.nickname.to_owned(),
-            "is_delete": false,
-            "created_at": datetime,
-            "updated_at": datetime,
-        };
-        doc_with_dates.extend(document.clone());
+    //     let mut doc_with_dates = doc! {
+    //         "username" : body.username.to_owned(),
+    //         "password" : body.password.to_owned(),
+    //         "email" : body.email.to_owned(),
+    //         "nickname" : body.nickname.to_owned(),
+    //         "is_delete": false,
+    //         "created_at": datetime,
+    //         "updated_at": datetime,
+    //     };
+    //     doc_with_dates.extend(document.clone());
 
-        Ok(doc_with_dates)
-    }
+    //     Ok(doc_with_dates)
+    // }
 
-    fn update_user_document(
-        &self,
-        username: &str,
-        body: &UpdateUserSchema,
-    ) -> Result<bson::Document> {
-        let serialized_data = bson::to_bson(body).map_err(MongoSerializeBsonError)?;
-        // let document = doc! {
-        //     "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
-        // };
-        let document = serialized_data.as_document().unwrap();
-        let datetime = Utc::now();
+    // fn update_user_document(
+    //     &self,
+    //     username: &str,
+    //     body: &UpdateUserSchema,
+    // ) -> Result<bson::Document> {
+    //     let serialized_data = bson::to_bson(body).map_err(MongoSerializeBsonError)?;
+    //     // let document = doc! {
+    //     //     "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
+    //     // };
+    //     let document = serialized_data.as_document().unwrap();
+    //     let datetime = Utc::now();
 
-        let mut doc_with_dates = doc! {
-            "username" : username,
-            "password" : body.password.to_owned(),
-            "email" : body.email.to_owned(),
-            "nickname" : body.nickname.to_owned(),
-            "is_delete": false,
-            "updated_at": datetime,
-        };
-        doc_with_dates.extend(document.clone());
+    //     let mut doc_with_dates = doc! {
+    //         "username" : username,
+    //         "password" : body.password.to_owned(),
+    //         "email" : body.email.to_owned(),
+    //         "nickname" : body.nickname.to_owned(),
+    //         "is_delete": false,
+    //         "updated_at": datetime,
+    //     };
+    //     doc_with_dates.extend(document.clone());
 
-        Ok(doc_with_dates)
-    }
+    //     Ok(doc_with_dates)
+    // }fn create_user_document(
+    //     &self,
+    //     body: &CreateUserSchema,
+    // ) -> Result<bson::Document> {
+    //     let serialized_data = bson::to_bson(body).map_err(MongoSerializeBsonError)?;
+        
+    //     let document = serialized_data.as_document().unwrap();
+    //     let datetime = Utc::now();
+
+    //     let mut doc_with_dates = doc! {
+    //         "username" : body.username.to_owned(),
+    //         "password" : body.password.to_owned(),
+    //         "email" : body.email.to_owned(),
+    //         "nickname" : body.nickname.to_owned(),
+    //         "is_delete": false,
+    //         "created_at": datetime,
+    //         "updated_at": datetime,
+    //     };
+    //     doc_with_dates.extend(document.clone());
+
+    //     Ok(doc_with_dates)
+    // }
+
+    // fn update_user_document(
+    //     &self,
+    //     username: &str,
+    //     body: &UpdateUserSchema,
+    // ) -> Result<bson::Document> {
+    //     let serialized_data = bson::to_bson(body).map_err(MongoSerializeBsonError)?;
+    //     // let document = doc! {
+    //     //     "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
+    //     // };
+    //     let document = serialized_data.as_document().unwrap();
+    //     let datetime = Utc::now();
+
+    //     let mut doc_with_dates = doc! {
+    //         "username" : username,
+    //         "password" : body.password.to_owned(),
+    //         "email" : body.email.to_owned(),
+    //         "nickname" : body.nickname.to_owned(),
+    //         "is_delete": false,
+    //         "updated_at": datetime,
+    //     };
+    //     doc_with_dates.extend(document.clone());
+
+    //     Ok(doc_with_dates)
+    // }
 }

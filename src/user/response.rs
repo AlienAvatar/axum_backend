@@ -10,7 +10,7 @@ pub struct GenericResponse {
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
 pub struct UserResponse {
-    pub id: String,
+    pub id: uuid::Uuid,
     pub username: String,
     pub nickname: String,
     pub password: String,

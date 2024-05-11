@@ -1,17 +1,13 @@
 use axum::{response::{IntoResponse, Html}, routing::{get, post}, Router, Json, extract::Multipart, http::StatusCode};
 use tokio::{self, fs, io::AsyncWriteExt};
-
+use config::Config;
 use serde::{Deserialize, Serialize};
 
 //mongoDB
 use mongodb::{bson::{doc, Document}, Collection};
-use mongodb::{Client, options::ClientOptions, options::FindOptions};
-//log
-mod user;
-mod error;
-mod route;
-mod note;
-mod db;
+use mongodb::{options::ClientOptions, options::FindOptions};
+// redis
+use redis::Client;
 
 use std::sync::Arc;
 use db::DB;
@@ -25,8 +21,18 @@ use error::MyError;
 use route::create_router;
 use tower_http::cors::CorsLayer;
 
+mod user;
+mod error;
+mod route;
+mod note;
+mod db;
+mod config;
+mod token;
+
 pub struct AppState {
     db: DB,
+    env: Config,
+    redis_client: Client,
 }
 
 #[tokio::main]
@@ -34,6 +40,18 @@ async fn main() -> Result<(), MyError> {
     dotenv().ok();
 
     let db = DB::init().await?;
+    let config = Config::init();
+
+    let redis_client = match Client::open(config.redis_url.to_owned()) {
+        Ok(client) => {
+            println!("✅Connection to the redis is successful!");
+            client
+        }
+        Err(e) => {
+            println!("🔥 Error connecting to Redis: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     let cors = CorsLayer::new()
         .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
@@ -41,7 +59,7 @@ async fn main() -> Result<(), MyError> {
         .allow_credentials(true)
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
-    let app = create_router(Arc::new(AppState { db: db.clone() })).layer(cors);
+    let app = create_router(Arc::new(AppState { db: db.clone(), env: config.clone(), redis_client: redis_client.clone()})).layer(cors);
 
     println!("🚀 Server started successfully");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:10001").await.unwrap();

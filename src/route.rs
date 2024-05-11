@@ -12,7 +12,7 @@ use crate::{
     }, 
     user::handler::{
         create_user_handler, get_user_by_username_handler, user_list_handler, valid_user_handler, 
-        update_user_handler, delete_user_handler
+        update_user_handler, delete_user_handler, logout_user_handler
     }, 
     AppState
 };
@@ -33,6 +33,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/user/create/", post(create_user_handler))
         .route("/api/user/get/:username", get(get_user_by_username_handler))
         .route("/api/user/valid/", post(valid_user_handler))
+        .route("/api/user/logout/", post(logout_user_handler))
         .route("/api/user/update/:username", post(update_user_handler))
         .route("/api/user/delete/:username", post(delete_user_handler))
         .with_state(app_state)

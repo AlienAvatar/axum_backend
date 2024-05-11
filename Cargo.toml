@@ -9,6 +9,7 @@ models = { path = "./models" }
 
 [dependencies]
 axum = {version="0.7.5", features=["multipart"]}
+axum-extra = { version = "0.7.2", features = ["cookie"] }
 chrono = { version = "0.4.24", features = ["serde"] }
 dotenv = "0.15.0"
 futures = { version = "0.3.28", default-features = false, features = ["async-await"] }
@@ -18,8 +19,14 @@ serde_json = "1.0.96"
 thiserror = "1.0.40"
 tokio = { version = "1.27.0", features = ["full"] }
 tower-http = { version = "0.5.0", features = ["cors"] }
+argon2 = "0.5.0"
+rand_core = { version = "0.6.4", features = ["std"] }
+time = "0.3.20"
+base64 = "0.21.0"
+redis = { version = "0.24.0", features = ["tokio-comp"] }
+
 # jwt生成及验证
-jsonwebtoken = "7.2"
+jsonwebtoken = "8.3.0"
 # uuid生成
 uuid = { version = "1.4.0", features = ["serde", "v4"] }
 # 用于帮助解析请求头
