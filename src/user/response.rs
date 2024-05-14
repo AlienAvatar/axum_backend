@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use mongodb::bson::oid::ObjectId;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -10,7 +11,7 @@ pub struct GenericResponse {
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
 pub struct UserResponse {
-    pub id: uuid::Uuid,
+    pub id: Option<ObjectId>,
     pub username: String,
     pub nickname: String,
     pub password: String,

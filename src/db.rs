@@ -81,7 +81,7 @@ impl DB {
     pub async fn create_user(&self, body: &CreateUserSchema, hashed_password: String) -> Result<SingleUserResponse> {
        
         let user_moel = UserModel {
-            id: Uuid::new_v4(),
+            id: Some(ObjectId::new()),
             username: body.username.to_owned(),
             nickname: body.nickname.to_owned(),
             password: hashed_password,
@@ -359,7 +359,7 @@ impl DB {
 
     fn doc_to_user(&self, user: &UserModel) -> Result<UserResponse> {
         let user_response = UserResponse {
-            id: user.id,
+            id: Some(ObjectId::new()),
             username: user.username.to_owned(),
             nickname: user.nickname.to_owned(),
             password: user.password.to_owned(),

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserModel {
     #[serde(rename = "_id")]
-    pub id: uuid::Uuid,
+    pub id: Option<ObjectId>,
     pub username: String,
     pub nickname: String,
     pub password: String,

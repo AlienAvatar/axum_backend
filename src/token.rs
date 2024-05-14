@@ -1,4 +1,5 @@
 use base64::{engine::general_purpose, Engine as _};
+use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -6,7 +7,7 @@ use uuid::Uuid;
 pub struct TokenDetails {
     pub token: Option<String>,
     pub token_uuid: uuid::Uuid,
-    pub user_id: uuid::Uuid,
+    pub id: Option<ObjectId>,
     pub expires_in: Option<i64>,
 }
 
@@ -20,7 +21,7 @@ pub struct TokenClaims {
 }
 
 pub fn generate_jwt_token(
-    user_id: uuid::Uuid,
+    id: Option<ObjectId>,
     ttl: i64,
     private_key: String,
 ) -> Result<TokenDetails, jsonwebtoken::errors::Error> {
@@ -29,14 +30,14 @@ pub fn generate_jwt_token(
 
     let now = chrono::Utc::now();
     let mut token_details = TokenDetails {
-        user_id,
+        id: id,
         token_uuid: Uuid::new_v4(),
         expires_in: Some((now + chrono::Duration::minutes(ttl)).timestamp()),
         token: None,
     };
 
     let claims = TokenClaims {
-        sub: token_details.user_id.to_string(),
+        sub: token_details.id.unwrap().to_string(),
         token_uuid: token_details.token_uuid.to_string(),
         exp: token_details.expires_in.unwrap(),
         iat: now.timestamp(),
@@ -49,7 +50,9 @@ pub fn generate_jwt_token(
         &claims,
         &jsonwebtoken::EncodingKey::from_rsa_pem(decoded_private_key.as_bytes())?,
     )?;
-    token_details.token = Some(token);
+
+    let token2 = token.clone();
+    token_details.token = Some(token2);
     Ok(token_details)
 }
 
@@ -68,13 +71,13 @@ pub fn verify_jwt_token(
         &validation,
     )?;
 
-    let user_id = Uuid::parse_str(decoded.claims.sub.as_str()).unwrap();
+    let id = ObjectId::parse_str(decoded.claims.sub).unwrap();
     let token_uuid = Uuid::parse_str(decoded.claims.token_uuid.as_str()).unwrap();
 
     Ok(TokenDetails {
         token: None,
         token_uuid,
-        user_id,
+        id : Some(id),
         expires_in: None,
     })
 }

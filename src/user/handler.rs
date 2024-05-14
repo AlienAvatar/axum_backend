@@ -5,16 +5,12 @@ use axum::{
     response::{Response, IntoResponse},
     Json,
 };
+use mongodb::bson::oid::ObjectId;
 
 use crate::{
-    error::MyError,
-    user::{
-        response::{TokenMessageResponse, MessageResponse},
-        schema::{CreateUserSchema, FilterOptions, UpdateUserSchema, VaildUserSchema},
-        model::{TokenClaims}
-    },
-    token::{self, TokenDetails},
-    AppState,
+    error::MyError, token::{self, verify_jwt_token, TokenDetails}, user::{
+        model::TokenClaims, response::{MessageResponse, TokenMessageResponse}, schema::{CreateUserSchema, FilterOptions, UpdateUserSchema, VaildUserSchema}
+    }, AppState
 };
 use jsonwebtoken::{decode, encode, Algorithm, EncodingKey, Header};
 use chrono::{DateTime, Utc};
@@ -25,11 +21,11 @@ use serde_json::json;
 use redis::AsyncCommands;
 
 fn generate_token(
-    user_id: uuid::Uuid,
+    id: Option<ObjectId>,
     max_age: i64,
     private_key: String,
 ) -> Result<TokenDetails, (StatusCode, Json<serde_json::Value>)> {
-    token::generate_jwt_token(user_id, max_age, private_key).map_err(|e| {
+    token::generate_jwt_token(id, max_age, private_key).map_err(|e| {
         let error_response = serde_json::json!({
             "status": "error",
             "message": format!("error generating token: {}", e),
@@ -57,7 +53,7 @@ async fn save_token_data_to_redis(
     redis_client
         .set_ex(
             token_details.token_uuid.to_string(),
-            token_details.user_id.to_string(),
+            token_details.id.unwrap().to_string(),
             (max_age * 60) as u64,
         )
         .await
@@ -75,6 +71,9 @@ pub async fn user_list_handler(
     opts: Option<Query<FilterOptions>>,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    //let header = app_state.header;
+
+
     let Query(opts) = opts.unwrap_or_default();
 
     let limit = opts.limit.unwrap_or(10) as i64;
@@ -129,82 +128,83 @@ pub async fn get_user_by_username_handler(
     }
 }
 
-pub async fn valid_user_handler(
+pub async fn login_user_handler(
     State(app_state): State<Arc<AppState>>,
     Json(body): Json<VaildUserSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    log::error!("valid_user_handler: {:?}", &body);
+    log::error!("login_user_handler: {:?}", &body);
 
     match app_state.db.get_user(&body.username).await.map_err(MyError::from) {
         Ok(res) => {
-            if(res.data.user.password == body.password){
-            //if(encryption::verify_password(res.data.user.password, body.password)){
-                //生成token
-                let password_key = res.data.user.password.clone();
-                let username_key = res.data.user.username.clone();
-                let user_id = res.data.user.id;
-
-                let is_valid = match PasswordHash::new(&username_key) {
-                    Ok(parsed_hash) => Argon2::default()
-                        .verify_password(body.password.as_bytes(), &parsed_hash)
-                        .map_or(false, |_| true),
-                    Err(_) => false,
-                };
-
-                if !is_valid {
-                    let error_response = serde_json::json!({
-                        "status": "fail",
-                        "message": "Invalid email or password"
-                    });
-                    return Err((StatusCode::BAD_REQUEST, Json(error_response)));
-                }
-                
-                let access_token_details = generate_token(
-                    user_id,
-                    app_state.env.access_token_max_age,
-                    app_state.env.access_token_private_key.to_owned(),
-                )?;
-                let refresh_token_details = generate_token(
-                    user_id,
-                    app_state.env.refresh_token_max_age,
-                    app_state.env.refresh_token_private_key.to_owned(),
-                )?;
-
-               
-                save_token_data_to_redis(&app_state, &access_token_details, app_state.env.access_token_max_age).await?;
-                save_token_data_to_redis(
-                    &app_state,
-                    &refresh_token_details,
-                    app_state.env.refresh_token_max_age,
-                )
-                .await?;
+            //if(res.data.user.password == body.password){
             
-                let mut response = Response::new(
-                    json!({"status": "success", "access_token": access_token_details.token.unwrap()})
-                        .to_string(),
-                );
+            //生成token
+            let password_key = res.data.user.password.clone();
+            let user_id = res.data.user.id.clone();
 
-                let mut headers = HeaderMap::new();
-                headers.append(
-                    header::SET_COOKIE,
-                    header::HeaderValue::from_static("access_token_details"),
-                );
-               
-                headers.append(
-                    header::CONTENT_TYPE,
-                     header::HeaderValue::from_static("application/json")
-                );
-                response.headers_mut().extend(headers);
-            
-                Ok(response)
-            }else{
-                let mut response = Response::new(json!({"code": 5000, "status" : "failure", "token": ""}).to_string());    
-                response
-                .headers_mut()
-                .insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
+            let is_valid = match PasswordHash::new(&password_key) {
+                Ok(parsed_hash) => Argon2::default()
+                    .verify_password(body.password.as_bytes(), &parsed_hash)
+                    .map_or(false, |_| true),
+                Err(_) => false,
+            };
 
-                Ok(response)
+            if !is_valid {
+                let error_response = serde_json::json!({
+                    "status": "fail",
+                    "message": "Invalid password"
+                });
+                return Err((StatusCode::BAD_REQUEST, Json(error_response)));
             }
+            
+            let access_token_details = generate_token(
+                user_id,
+                app_state.env.access_token_max_age,
+                app_state.env.access_token_private_key.to_owned(),
+            )?;
+
+            // let refresh_token_details = generate_token(
+            //     username_key,
+            //     app_state.env.refresh_token_max_age,
+            //     app_state.env.refresh_token_private_key.to_owned(),
+            // )?;
+
+            
+            //save_token_data_to_redis(&app_state, &access_token_details, app_state.env.access_token_max_age).await?;
+            // save_token_data_to_redis(
+            //     &app_state,
+            //     &refresh_token_details,
+            //     app_state.env.refresh_token_max_age,
+            // )
+            // .await?;
+        
+            let mut response = Response::new(
+                json!({"status": "success", "access_token": access_token_details.token.unwrap()})
+                    .to_string(),
+            );
+
+            let mut headers = HeaderMap::new();
+            headers.append(
+                header::SET_COOKIE,
+                header::HeaderValue::from_static("access_token_details"),
+            );
+            
+            headers.append(
+                header::CONTENT_TYPE,
+                    header::HeaderValue::from_static("application/json")
+            );
+            response.headers_mut().extend(headers);
+        
+            Ok(response)
+
+            // }else{
+            //     let mut response = Response::new(json!({"code": 5000, "status" : "failure", "token": ""}).to_string());    
+            //     response
+            //     .headers_mut()
+            //     .insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
+
+            //     Ok(response)
+            // }
         }
         Err(e) => {
             log::error!("valid_user_handler: {:?}", e);
