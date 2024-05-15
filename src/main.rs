@@ -28,6 +28,7 @@ mod note;
 mod db;
 mod config;
 mod token;
+mod article;
 
 pub struct AppState {
     db: DB,

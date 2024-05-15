@@ -14,6 +14,9 @@ use crate::{
         create_user_handler, get_user_by_username_handler, user_list_handler, login_user_handler, 
         update_user_handler, delete_user_handler, logout_user_handler
     }, 
+    article::handler::{
+        article_list_handler
+    },
     AppState
 };
 
@@ -21,7 +24,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/healthchecker", get(health_checker_handler))
         .route("/api/notes/", post(create_note_handler))
-        .route("/api/notes/list", get(note_list_handler))
+        .route("/api/notes/list/", get(note_list_handler))
         .route(
             "/api/notes/:id",
             get(get_note_handler)
@@ -36,6 +39,8 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/user/logout/", post(logout_user_handler))
         .route("/api/user/update/:username", post(update_user_handler))
         .route("/api/user/delete/:username", post(delete_user_handler))
+        //article
+        .route("/api/article/list/", get(article_list_handler))
         .with_state(app_state)
 
     // let app = Router::new()

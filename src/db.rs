@@ -1,10 +1,12 @@
 use crate::error::MyError;
 use crate::note::response::{NoteData, NoteListResponse, NoteResponse, SingleNoteResponse};
 use crate::user::response::{UserData, UserListResponse, UserResponse, SingleUserResponse};
+use crate::article::response::{ArticleData, ArticleListResponse, ArticleResponse, SingleArticleResponse};
 use crate::{
-    error::MyError::*, note::model::NoteModel, user::model::UserModel, 
+    error::MyError::*, note::model::NoteModel, user::model::UserModel, article::model::ArticleModel,
     user::schema::{CreateUserSchema, UpdateUserSchema, DeleteUserSchema}, 
     note::schema::{CreateNoteSchema, UpdateNoteSchema},
+    article::schema::{CreateArticleSchema, UpdateArticleSchema},
 };
 use chrono::prelude::*;
 use futures::StreamExt;
@@ -19,6 +21,7 @@ pub struct DB {
     pub note_collection: Collection<NoteModel>,
     pub collection: Collection<Document>,
     pub user_collection: Collection<UserModel>,
+    pub article_collection: Collection<ArticleModel>,
 }
 
 type Result<T> = std::result::Result<T, MyError>;
@@ -31,7 +34,9 @@ impl DB {
         let collection_name =
             std::env::var("MONGODB_NOTE_COLLECTION").expect("MONGODB_NOTE_COLLECTION must be set.");
         let user_collection_name =
-            std::env::var("MONGODB_USER_NOTE_COLLECTION").expect("MONGODB_USER_NOTE_COLLECTION must be set.");
+            std::env::var("MONGODB_USER_COLLECTION").expect("MONGODB_USER_COLLECTION must be set.");
+        let article_collection_name =
+            std::env::var("MONGODB_ARTICLE_COLLECTION").expect("MONGODB_ARTICLE_COLLECTION must be set.");
 
         let mut client_options = ClientOptions::parse(mongodb_uri).await?;
         client_options.app_name = Some(database_name.to_string());
@@ -42,6 +47,7 @@ impl DB {
         let note_collection = database.collection(collection_name.as_str());
         let collection = database.collection::<Document>(collection_name.as_str());
         let user_collection = database.collection::<UserModel>(user_collection_name.as_str());
+        let article_collection = database.collection::<ArticleModel>(article_collection_name.as_str());
 
         println!("✅ Database connected successfully");
 
@@ -49,6 +55,7 @@ impl DB {
             note_collection,
             collection,
             user_collection,
+            article_collection,
         })
     }
 
@@ -70,7 +77,6 @@ impl DB {
             json_result.push(self.doc_to_user(&doc.unwrap())?);
         }
 
-        println!("json_resultlen{}", json_result.len());
         Ok(UserListResponse {
             status: "success",
             results: json_result.len(),
@@ -386,6 +392,18 @@ impl DB {
         Ok(note_response)
     }
 
+    fn doc_to_article(&self, article: &ArticleModel) -> Result<ArticleResponse> {
+        let article_response = ArticleResponse {
+            id: Some(ObjectId::new()),
+            nickname: article.nickname.to_owned(),
+            is_delete: article.is_delete,
+            created_at: article.created_at,
+            updated_at: article.updated_at,
+        };
+    
+        Ok(article_response)
+    }
+
     fn create_note_document(
         &self,
         body: &CreateNoteSchema,
@@ -408,6 +426,89 @@ impl DB {
         Ok(doc_with_dates)
     }
 
+    pub async fn fetch_articles(&self, limit: i64, page: i64) -> Result<ArticleListResponse> {
+        let find_options = FindOptions::builder()
+            .limit(limit)
+            .skip(u64::try_from((page - 1) * limit).unwrap())
+            .build();
+
+        let mut cursor = self
+            .article_collection
+            .find(None, find_options)
+            .await
+            .map_err(MongoQueryError)?;
+
+        let mut json_result: Vec<ArticleResponse> = Vec::new();
+
+        while let Some(doc) = cursor.next().await {
+            json_result.push(self.doc_to_article(&doc.unwrap())?);
+        }
+
+        Ok(ArticleListResponse {
+            status: "success",
+            results: json_result.len(),
+            articles: json_result,
+        })
+    }
+
+    pub async fn create_article(&self, body: &CreateArticleSchema) -> Result<SingleArticleResponse> {
+        let article_moel = ArticleModel {
+            id: Some(ObjectId::new()),
+            title: body.title.to_owned(),
+            content: body.content.to_owned(),
+            nickname: body.nickname.to_owned(),
+            is_delete:  Some(false),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+    
+        //把articlename作为构建唯一索引
+        let options = IndexOptions::builder().unique(false).build();
+        let index = IndexModel::builder()
+            .keys(doc! { &article_moel.title: 1 })
+            .options(options)
+            .build();
+        match self.article_collection.create_index(index, None).await {
+            Ok(_) => {}
+            Err(e) => return Err(MongoQueryError(e)),
+        };
+    
+        //插入数据库
+        let insert_result = match self.article_collection.insert_one(&article_moel, None).await {
+            Ok(result) => result,
+            Err(e) => {
+                if e.to_string()
+                    .contains("E11000 duplicate key error collection")
+                {
+                    return Err(MongoDuplicateError(e));
+                }
+                return Err(MongoQueryError(e));
+            }
+        };
+    
+        //生成id
+        let new_id = insert_result
+            .inserted_id
+            .as_object_id()
+            .expect("issue with new _id");
+        //检测是否有重复id
+        let article_doc = match self
+            .article_collection
+            .find_one(doc! {"_id": new_id}, None)
+            .await
+        {
+            Ok(Some(doc)) => doc,
+            Ok(None) => return Err(NotFoundError(new_id.to_string())),
+            Err(e) => return Err(MongoQueryError(e)),
+        };
+    
+        Ok(SingleArticleResponse {
+            status: "success",
+            data: ArticleData {
+                article: self.doc_to_article(&article_doc)?,
+            },
+        })
+    }
     // fn create_user_document(
     //     &self,
     //     body: &CreateUserSchema,
