@@ -14,7 +14,8 @@ pub struct ArticleListResponse {
 #[derive(Serialize, Debug)]
 pub struct ArticleResponse {
     pub id: Option<ObjectId>,
-    pub nickname: String,
+    pub num: String,
+    pub author: String,
     pub is_delete: Option<bool>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

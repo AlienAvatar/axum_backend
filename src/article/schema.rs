@@ -16,7 +16,7 @@ pub struct ParamOptions {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateArticleSchema {
     pub title: String,
-    pub nickname: String,
+    pub author: String,
     pub content: String,
 }
 
@@ -27,6 +27,13 @@ pub struct UpdateArticleSchema {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub nickname: Option<String>,
+    pub author: Option<String>,
     pub is_delete : Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DeleteArticleSchema {
+    pub is_delete : Option<bool>,
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub updated_at: DateTime<Utc>,
 }

@@ -6,7 +6,8 @@ use crate::{
     error::MyError::*, note::model::NoteModel, user::model::UserModel, article::model::ArticleModel,
     user::schema::{CreateUserSchema, UpdateUserSchema, DeleteUserSchema}, 
     note::schema::{CreateNoteSchema, UpdateNoteSchema},
-    article::schema::{CreateArticleSchema, UpdateArticleSchema},
+    article::schema::{CreateArticleSchema, UpdateArticleSchema, DeleteArticleSchema},
+    common::rand_generate_num
 };
 use chrono::prelude::*;
 use futures::StreamExt;
@@ -395,7 +396,8 @@ impl DB {
     fn doc_to_article(&self, article: &ArticleModel) -> Result<ArticleResponse> {
         let article_response = ArticleResponse {
             id: Some(ObjectId::new()),
-            nickname: article.nickname.to_owned(),
+            num: article.num.to_owned(),
+            author: article.author.to_owned(),
             is_delete: article.is_delete,
             created_at: article.created_at,
             updated_at: article.updated_at,
@@ -452,11 +454,14 @@ impl DB {
     }
 
     pub async fn create_article(&self, body: &CreateArticleSchema) -> Result<SingleArticleResponse> {
+        let num = rand_generate_num();
         let article_moel = ArticleModel {
             id: Some(ObjectId::new()),
+            num: num.to_owned(),
             title: body.title.to_owned(),
             content: body.content.to_owned(),
-            nickname: body.nickname.to_owned(),
+            author: body.author.to_owned(),
+            good_count: 0,
             is_delete:  Some(false),
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -465,7 +470,7 @@ impl DB {
         //把articlename作为构建唯一索引
         let options = IndexOptions::builder().unique(false).build();
         let index = IndexModel::builder()
-            .keys(doc! { &article_moel.title: 1 })
+            .keys(doc! { &article_moel.num: 1 })
             .options(options)
             .build();
         match self.article_collection.create_index(index, None).await {
@@ -508,6 +513,83 @@ impl DB {
                 article: self.doc_to_article(&article_doc)?,
             },
         })
+    }
+
+    pub async fn get_article(&self, title: &str) -> Result<SingleArticleResponse> {
+        //let oid = ObjectId::from_str(id).map_err(|_| InvalidIDError(id.to_owned()))?;
+    
+        let article_doc = self
+            .article_collection
+            .find_one(doc! {"title": title }, None)
+            .await
+            .map_err(MongoQueryError)?;
+    
+        match article_doc {
+            Some(doc) => {
+                let article = self.doc_to_article(&doc)?;
+                Ok(SingleArticleResponse {
+                    status: "success",
+                    data: ArticleData { article },
+                })
+            }
+            None => Err(NotFoundError(title.to_string())),
+        }
+    }
+
+    pub async fn update_article(&self, title: &str, body: &UpdateArticleSchema) -> Result<SingleArticleResponse> {
+        let update = doc! {
+            "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .return_document(ReturnDocument::After)
+            .build();
+    
+        if let Some(doc) = self
+            .article_collection
+            .find_one_and_update(doc! {"title": title}, update, options)
+            .await
+            .map_err(MongoQueryError)?
+        {
+            let article = self.doc_to_article(&doc)?;
+            let article_response = SingleArticleResponse {
+                status: "success",
+                data: ArticleData { article },
+            };
+            Ok(article_response)
+        } else {
+            Err(NotFoundError(title.to_string()))
+        }
+    }
+    
+    pub async fn delete_article(&self, num: &str) -> Result<SingleArticleResponse> {
+        let article_moel = DeleteArticleSchema {
+            is_delete:  Some(true),
+            updated_at: Utc::now(),
+        };
+    
+        //delete不应该有参数
+        let update = doc! {
+            "$set": bson::to_bson(&article_moel).map_err(MongoSerializeBsonError)?,
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .return_document(ReturnDocument::After)
+            .build();
+    
+        if let Some(doc) = self
+            .article_collection
+            .find_one_and_update(doc! {"num": num}, update, options)
+            .await
+            .map_err(MongoQueryError)?
+        {
+            let article = self.doc_to_article(&doc)?;
+            let article_response = SingleArticleResponse {
+                status: "success",
+                data: ArticleData { article },
+            };
+            Ok(article_response)
+        } else {
+            Err(NotFoundError(num.to_string()))
+        }
     }
     // fn create_user_document(
     //     &self,

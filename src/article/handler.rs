@@ -10,7 +10,7 @@ use mongodb::bson::oid::ObjectId;
 use crate::{
     error::MyError, token::{self, verify_jwt_token, TokenDetails}, 
     user::{model::TokenClaims, response::{MessageResponse, TokenMessageResponse}}, 
-    article::schema::{FilterOptions, CreateArticleSchema}, 
+    article::schema::{FilterOptions, CreateArticleSchema, UpdateArticleSchema}, 
 
     AppState
 };
@@ -73,6 +73,7 @@ pub async fn create_article_handler(
     headers: HeaderMap,
     Json(body): Json<CreateArticleSchema>,
   ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    //valid token
     let token = headers.get("token");
     if(token.is_none()){
         let error_response = serde_json::json!({
@@ -94,21 +95,7 @@ pub async fn create_article_handler(
             return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
         }
     };
-    // //加密
-    // let salt = SaltString::generate(&mut OsRng);
-    // let hashed_password = Argon2::default()
-    // .hash_password(body.password.as_bytes(), &salt)
-    // .map_err(|e| {
-    //     let error_response = serde_json::json!({
-    //         "status": "fail",
-    //         "message": format!("Error while hashing password: {}", e),
-    //     });
-    //     (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
-    // })
-    // .map(|hash| hash.to_string())?;
-    
   
-    //&body.password = hashed_password;
     match app_state
         .db
         .create_article(&body)
@@ -117,4 +104,127 @@ pub async fn create_article_handler(
         Ok(res) => Ok((StatusCode::CREATED, Json(res))),
         Err(e) => Err(e.into()),
     }
-  }
+}
+
+pub async fn get_article_by_title_handler(
+    Path(title): Path<String>,
+    headers: HeaderMap,
+    State(app_state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let token = headers.get("token");
+    if(token.is_none()){
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": "Token is empty"
+        });
+        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    }
+
+    let tokenstr = token.unwrap().to_str().unwrap();
+    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
+    {
+        Ok(token_details) => token_details,
+        Err(e) => {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format_args!("{:?}", e)
+            });
+            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+        }
+    };
+
+    match app_state.db.get_article(&title).await.map_err(MyError::from) {
+        Ok(res) => Ok(Json(res)),
+        Err(e) => Err(e.into()),
+    }
+}
+
+pub async fn update_article_by_title_handler(
+    Path(title): Path<String>,
+    headers: HeaderMap,
+    State(app_state): State<Arc<AppState>>,
+    Json(body): Json<UpdateArticleSchema>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let token = headers.get("token");
+    if(token.is_none()){
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": "Token is empty"
+        });
+        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    }
+
+    let tokenstr = token.unwrap().to_str().unwrap();
+    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
+    {
+        Ok(token_details) => token_details,
+        Err(e) => {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format_args!("{:?}", e)
+            });
+            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+        }
+    };
+
+    match app_state
+        .db
+        .update_article(&title, &body)
+        .await
+        .map_err(MyError::from)
+    {
+        Ok(res) => Ok(Json(res)),
+        Err(e) => Err(e.into()),
+    }
+}
+
+pub async fn delete_article_by_num_handler(
+    Path(num): Path<String>,
+    headers: HeaderMap,
+    State(app_state): State<Arc<AppState>>
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    //验证token
+    let token = headers.get("token");
+    if(token.is_none()){
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": "Token is empty"
+        });
+        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    }
+
+    let tokenstr = token.unwrap().to_str().unwrap();
+    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
+    {
+        Ok(token_details) => token_details,
+        Err(e) => {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format_args!("{:?}", e)
+            });
+            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+        }
+    };
+
+    match app_state.db.delete_article(&num).await.map_err(MyError::from) {
+        Ok(res) => 
+        {
+            if(res.data.article.num == num
+                && res.data.article.is_delete == Some(true))
+            {
+                let message = MessageResponse {
+                    code: 200,
+                    message: "success".to_string(),
+                };
+                return Ok((StatusCode::ACCEPTED, Json(message)))
+            }else{
+                let message = MessageResponse {
+                    code: 200,
+                    message: "failure".to_string(),
+                };
+                return Ok((StatusCode::BAD_REQUEST, Json(message)))
+            }
+        }
+        Err(e) => Err(e.into()),
+    }
+}
