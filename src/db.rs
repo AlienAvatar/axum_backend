@@ -1,12 +1,15 @@
+use crate::comment::model::CommentModel;
 use crate::error::MyError;
 use crate::note::response::{NoteData, NoteListResponse, NoteResponse, SingleNoteResponse};
 use crate::user::response::{UserData, UserListResponse, UserResponse, SingleUserResponse};
 use crate::article::response::{ArticleData, ArticleListResponse, ArticleResponse, SingleArticleResponse};
+use crate::comment::response::{CommentData, CommentListResponse, CommentResponse, SingleCommentResponse};
 use crate::{
     error::MyError::*, note::model::NoteModel, user::model::UserModel, article::model::ArticleModel,
     user::schema::{CreateUserSchema, UpdateUserSchema, DeleteUserSchema}, 
     note::schema::{CreateNoteSchema, UpdateNoteSchema},
     article::schema::{CreateArticleSchema, UpdateArticleSchema, DeleteArticleSchema},
+    comment::schema::{CreateCommentSchema, UpdateCommentSchema, DeleteCommentSchema},
     common::rand_generate_num
 };
 use chrono::prelude::*;
@@ -23,6 +26,7 @@ pub struct DB {
     pub collection: Collection<Document>,
     pub user_collection: Collection<UserModel>,
     pub article_collection: Collection<ArticleModel>,
+    pub comment_collection: Collection<CommentModel>,
 }
 
 type Result<T> = std::result::Result<T, MyError>;
@@ -38,6 +42,8 @@ impl DB {
             std::env::var("MONGODB_USER_COLLECTION").expect("MONGODB_USER_COLLECTION must be set.");
         let article_collection_name =
             std::env::var("MONGODB_ARTICLE_COLLECTION").expect("MONGODB_ARTICLE_COLLECTION must be set.");
+        let comment_collection_name =
+            std::env::var("MONGODB_COMMENT_COLLECTION").expect("MONGODB_COMMENT_COLLECTION must be set.");
 
         let mut client_options = ClientOptions::parse(mongodb_uri).await?;
         client_options.app_name = Some(database_name.to_string());
@@ -49,6 +55,7 @@ impl DB {
         let collection = database.collection::<Document>(collection_name.as_str());
         let user_collection = database.collection::<UserModel>(user_collection_name.as_str());
         let article_collection = database.collection::<ArticleModel>(article_collection_name.as_str());
+        let comment_collection = database.collection::<CommentModel>(comment_collection_name.as_str());
 
         println!("✅ Database connected successfully");
 
@@ -57,6 +64,7 @@ impl DB {
             collection,
             user_collection,
             article_collection,
+            comment_collection,
         })
     }
 
@@ -590,6 +598,104 @@ impl DB {
         } else {
             Err(NotFoundError(num.to_string()))
         }
+    }
+
+    pub async fn create_comment(&self, body: &CreateCommentSchema) -> Result<SingleCommentResponse> {
+        let comment_moel = CommentModel {
+            id: Some(ObjectId::new()),
+            article_num: body.article_num.to_owned(),
+            content: body.content.to_owned(),
+            author: body.author.to_owned(),
+            good_count: 0,
+            is_delete:  Some(false),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+    
+        //把commentname作为构建唯一索引
+        let options = IndexOptions::builder().unique(false).build();
+        let index = IndexModel::builder()
+            .keys(doc! { &comment_moel.article_num: 1 })
+            .options(options)
+            .build();
+        match self.comment_collection.create_index(index, None).await {
+            Ok(_) => {}
+            Err(e) => return Err(MongoQueryError(e)),
+        };
+    
+        //插入数据库
+        let insert_result = match self.comment_collection.insert_one(&comment_moel, None).await {
+            Ok(result) => result,
+            Err(e) => {
+                if e.to_string()
+                    .contains("E11000 duplicate key error collection")
+                {
+                    return Err(MongoDuplicateError(e));
+                }
+                return Err(MongoQueryError(e));
+            }
+        };
+    
+        //生成id
+        let new_id = insert_result
+            .inserted_id
+            .as_object_id()
+            .expect("issue with new _id");
+        //检测是否有重复id
+        let comment_doc = match self
+            .comment_collection
+            .find_one(doc! {"_id": new_id}, None)
+            .await
+        {
+            Ok(Some(doc)) => doc,
+            Ok(None) => return Err(NotFoundError(new_id.to_string())),
+            Err(e) => return Err(MongoQueryError(e)),
+        };
+    
+        Ok(SingleCommentResponse {
+            status: "success",
+            data: CommentData {
+                comment: self.doc_to_comment(&comment_doc)?,
+            },
+        })
+    }
+
+    pub async fn fetch_comments(&self, limit: i64, page: i64) -> Result<CommentListResponse> {
+        let find_options = FindOptions::builder()
+            .limit(limit)
+            .skip(u64::try_from((page - 1) * limit).unwrap())
+            .build();
+    
+        let mut cursor = self
+            .comment_collection
+            .find(None, find_options)
+            .await
+            .map_err(MongoQueryError)?;
+    
+        let mut json_result: Vec<CommentResponse> = Vec::new();
+    
+        while let Some(doc) = cursor.next().await {
+            json_result.push(self.doc_to_comment(&doc.unwrap())?);
+        }
+    
+        Ok(CommentListResponse {
+            status: "success",
+            results: json_result.len(),
+            comments: json_result,
+        })
+    }
+    
+    fn doc_to_comment(&self, comment: &CommentModel) -> Result<CommentResponse> {
+        let comment_response = CommentResponse {
+            id: Some(ObjectId::new()),
+            article_num: comment.article_num.to_owned(),
+            author: comment.author.to_owned(),
+            is_delete: comment.is_delete,
+            created_at: comment.created_at,
+            updated_at: comment.updated_at,
+        };
+    
+        Ok(comment_response)
     }
     // fn create_user_document(
     //     &self,

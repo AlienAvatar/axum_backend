@@ -9,12 +9,18 @@ use crate::{
     article::handler::{
         article_list_handler, create_article_handler, get_article_by_title_handler,
         update_article_by_title_handler, delete_article_by_num_handler
-    }, note::handler::{
+    }, 
+    note::handler::{
         create_note_handler, delete_note_handler, edit_note_handler, get_note_handler,
         health_checker_handler, note_list_handler,
-    }, user::handler::{
+    }, 
+    user::handler::{
         create_user_handler, delete_user_handler, get_user_by_username_handler, login_user_handler, logout_user_handler, update_user_handler, user_list_handler
-    }, AppState
+    },
+    comment::handler::{
+        create_comment_handler, comment_list_handler
+    },
+    AppState
 };
 
 pub fn create_router(app_state: Arc<AppState>) -> Router {
@@ -42,6 +48,9 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/article/get/:title", post(get_article_by_title_handler))
         .route("/api/article/update/:title", post(update_article_by_title_handler))
         .route("/api/article/delete/:num", post(delete_article_by_num_handler))
+        //comment
+        .route("/api/comment/list/", post(comment_list_handler))
+        .route("/api/comment/create/", post(create_comment_handler))
         .with_state(app_state)
 
     // let app = Router::new()
