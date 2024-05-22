@@ -106,8 +106,8 @@ pub async fn create_article_handler(
     }
 }
 
-pub async fn get_article_by_title_handler(
-    Path(title): Path<String>,
+pub async fn get_article_by_num_handler(
+    Path(num): Path<String>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -133,14 +133,14 @@ pub async fn get_article_by_title_handler(
         }
     };
 
-    match app_state.db.get_article(&title).await.map_err(MyError::from) {
+    match app_state.db.get_article(&num).await.map_err(MyError::from) {
         Ok(res) => Ok(Json(res)),
         Err(e) => Err(e.into()),
     }
 }
 
-pub async fn update_article_by_title_handler(
-    Path(title): Path<String>,
+pub async fn update_article_by_num_handler(
+    Path(num): Path<String>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
     Json(body): Json<UpdateArticleSchema>,
@@ -169,7 +169,7 @@ pub async fn update_article_by_title_handler(
 
     match app_state
         .db
-        .update_article(&title, &body)
+        .update_article(&num, &body)
         .await
         .map_err(MyError::from)
     {

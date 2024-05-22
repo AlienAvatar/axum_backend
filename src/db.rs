@@ -9,7 +9,7 @@ use crate::{
     user::schema::{CreateUserSchema, UpdateUserSchema, DeleteUserSchema}, 
     note::schema::{CreateNoteSchema, UpdateNoteSchema},
     article::schema::{CreateArticleSchema, UpdateArticleSchema, DeleteArticleSchema},
-    comment::schema::{CreateCommentSchema, UpdateCommentSchema, DeleteCommentSchema, GetCommentsByArticleNumSchema},
+    comment::schema::{CreateCommentSchema, UpdateCommentSchema, DeleteCommentSchema},
     common::rand_generate_num
 };
 use chrono::prelude::*;
@@ -18,7 +18,6 @@ use mongodb::bson::{doc, oid::ObjectId, Document};
 use mongodb::options::{FindOneAndUpdateOptions, FindOptions, IndexOptions, ReturnDocument};
 use mongodb::{bson, options::ClientOptions, Client, Collection, IndexModel};
 use std::str::FromStr;
-use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct DB {
@@ -523,12 +522,12 @@ impl DB {
         })
     }
 
-    pub async fn get_article(&self, title: &str) -> Result<SingleArticleResponse> {
+    pub async fn get_article(&self, num: &str) -> Result<SingleArticleResponse> {
         //let oid = ObjectId::from_str(id).map_err(|_| InvalidIDError(id.to_owned()))?;
     
         let article_doc = self
             .article_collection
-            .find_one(doc! {"title": title }, None)
+            .find_one(doc! {"num": num }, None)
             .await
             .map_err(MongoQueryError)?;
     
@@ -540,11 +539,11 @@ impl DB {
                     data: ArticleData { article },
                 })
             }
-            None => Err(NotFoundError(title.to_string())),
+            None => Err(NotFoundError(num.to_string())),
         }
     }
 
-    pub async fn update_article(&self, title: &str, body: &UpdateArticleSchema) -> Result<SingleArticleResponse> {
+    pub async fn update_article(&self, num: &str, body: &UpdateArticleSchema) -> Result<SingleArticleResponse> {
         let update = doc! {
             "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
         };
@@ -554,7 +553,7 @@ impl DB {
     
         if let Some(doc) = self
             .article_collection
-            .find_one_and_update(doc! {"title": title}, update, options)
+            .find_one_and_update(doc! {"num": num}, update, options)
             .await
             .map_err(MongoQueryError)?
         {
@@ -565,7 +564,7 @@ impl DB {
             };
             Ok(article_response)
         } else {
-            Err(NotFoundError(title.to_string()))
+            Err(NotFoundError(num.to_string()))
         }
     }
     
