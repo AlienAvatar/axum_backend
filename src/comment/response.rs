@@ -14,6 +14,8 @@ pub struct CommentListResponse {
 #[derive(Serialize, Debug)]
 pub struct CommentResponse {
     pub id: Option<ObjectId>,
+    pub comment_id: String,
+    pub content: String,
     pub article_num: String,
     pub author: String,
     pub is_delete: Option<bool>,
@@ -32,4 +34,10 @@ pub struct CommentData {
 pub struct SingleCommentResponse {
     pub status: &'static str,
     pub data: CommentData,
+}
+
+#[derive(Serialize, Debug)]
+pub struct MessageResponse {
+    pub code : u8,
+    pub message : String,
 }

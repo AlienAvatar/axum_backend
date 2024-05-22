@@ -18,7 +18,8 @@ use crate::{
         create_user_handler, delete_user_handler, get_user_by_username_handler, login_user_handler, logout_user_handler, update_user_handler, user_list_handler
     },
     comment::handler::{
-        create_comment_handler, comment_list_handler
+        create_comment_handler, comment_list_handler, comment_list_by_aritcle_num_handler, get_comment_by_comment_id_handler,
+        delete_comment_by_comment_id_handler, update_comment_by_id_handler
     },
     AppState
 };
@@ -49,8 +50,12 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/article/update/:title", post(update_article_by_title_handler))
         .route("/api/article/delete/:num", post(delete_article_by_num_handler))
         //comment
-        .route("/api/comment/list/", post(comment_list_handler))
+        .route("/api/comment/list/", get(comment_list_handler))
+        .route("/api/comment/list/:author_num", get(comment_list_by_aritcle_num_handler))
         .route("/api/comment/create/", post(create_comment_handler))
+        .route("/api/comment/get/:comment_id", get(get_comment_by_comment_id_handler))
+        .route("/api/comment/delete/:comment_id", post(delete_comment_by_comment_id_handler))
+        .route("/api/comment/update/:comment_id", post(update_comment_by_id_handler))
         .with_state(app_state)
 
     // let app = Router::new()

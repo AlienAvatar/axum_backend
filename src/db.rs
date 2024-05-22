@@ -9,7 +9,7 @@ use crate::{
     user::schema::{CreateUserSchema, UpdateUserSchema, DeleteUserSchema}, 
     note::schema::{CreateNoteSchema, UpdateNoteSchema},
     article::schema::{CreateArticleSchema, UpdateArticleSchema, DeleteArticleSchema},
-    comment::schema::{CreateCommentSchema, UpdateCommentSchema, DeleteCommentSchema},
+    comment::schema::{CreateCommentSchema, UpdateCommentSchema, DeleteCommentSchema, GetCommentsByArticleNumSchema},
     common::rand_generate_num
 };
 use chrono::prelude::*;
@@ -601,8 +601,11 @@ impl DB {
     }
 
     pub async fn create_comment(&self, body: &CreateCommentSchema) -> Result<SingleCommentResponse> {
+        let mut comment_id = rand_generate_num();
+        comment_id = comment_id + "_" + &body.article_num.to_owned();
         let comment_moel = CommentModel {
             id: Some(ObjectId::new()),
+            comment_id: comment_id,
             article_num: body.article_num.to_owned(),
             content: body.content.to_owned(),
             author: body.author.to_owned(),
@@ -615,7 +618,7 @@ impl DB {
         //把commentname作为构建唯一索引
         let options = IndexOptions::builder().unique(false).build();
         let index = IndexModel::builder()
-            .keys(doc! { &comment_moel.article_num: 1 })
+            .keys(doc! { &comment_moel.comment_id: 1 })
             .options(options)
             .build();
         match self.comment_collection.create_index(index, None).await {
@@ -685,17 +688,119 @@ impl DB {
         })
     }
     
+    pub async fn fetch_comments_by_aritcle_num(&self, article_num: &str, limit: i64, page: i64) -> Result<CommentListResponse> {
+        let find_options = FindOptions::builder()
+            .limit(limit)
+            .skip(u64::try_from((page - 1) * limit).unwrap())
+            .build();
+
+        let mut cursor = self
+            .comment_collection
+            .find(doc!{"article_num" : article_num}, find_options)
+            .await
+            .map_err(MongoQueryError)?;
+    
+        let mut json_result: Vec<CommentResponse> = Vec::new();
+    
+        while let Some(doc) = cursor.next().await {
+            json_result.push(self.doc_to_comment(&doc.unwrap())?);
+        }
+
+        Ok(CommentListResponse {
+            status: "success",
+            results: json_result.len(),
+            comments: json_result,
+        })
+    }
+
     fn doc_to_comment(&self, comment: &CommentModel) -> Result<CommentResponse> {
         let comment_response = CommentResponse {
             id: Some(ObjectId::new()),
+            comment_id: comment.comment_id.to_owned(),
             article_num: comment.article_num.to_owned(),
             author: comment.author.to_owned(),
+            content: comment.content.to_owned(),
             is_delete: comment.is_delete,
             created_at: comment.created_at,
             updated_at: comment.updated_at,
         };
     
         Ok(comment_response)
+    }
+
+    pub async fn get_comment_by_comment_id(&self, comment_id: &str) -> Result<SingleCommentResponse> {
+        let comment_doc = self
+            .comment_collection
+            .find_one(doc! {"comment_id": comment_id }, None)
+            .await
+            .map_err(MongoQueryError)?;
+    
+        match comment_doc {
+            Some(doc) => {
+                let comment = self.doc_to_comment(&doc)?;
+                Ok(SingleCommentResponse {
+                    status: "success",
+                    data: CommentData { comment },
+                })
+            }
+            None => Err(NotFoundError(comment_id.to_string())),
+        }
+    }
+
+    pub async fn delete_comment_by_comment_id(&self, comment_id: &str) -> Result<SingleCommentResponse> {
+        let comment_moel = DeleteCommentSchema {
+            is_delete:  Some(true),
+            updated_at: Utc::now(),
+        };
+    
+        //delete不应该有参数
+        let update = doc! {
+            "$set": bson::to_bson(&comment_moel).map_err(MongoSerializeBsonError)?,
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .return_document(ReturnDocument::After)
+            .build();
+    
+        if let Some(doc) = self
+            .comment_collection
+            .find_one_and_update(doc! {"comment_id": comment_id}, update, options)
+            .await
+            .map_err(MongoQueryError)?
+        {
+            let comment = self.doc_to_comment(&doc)?;
+            let comment_response = SingleCommentResponse {
+                status: "success",
+                data: CommentData { comment },
+            };
+            Ok(comment_response)
+        } else {
+            Err(NotFoundError(comment_id.to_string()))
+        }
+    }
+
+    pub async fn update_comment_by_id(&self, comment_id: &str, body: &UpdateCommentSchema) -> Result<SingleCommentResponse> {
+        let update = doc! {
+            "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .return_document(ReturnDocument::After)
+            .build();
+    
+        if let Some(doc) = self
+            .comment_collection
+            .find_one_and_update(doc! {"comment_id": comment_id}, update, options)
+            .await
+            .map_err(MongoQueryError)?
+        {
+            let comment = self.doc_to_comment(&doc)?;
+            let comment_response = SingleCommentResponse {
+                status: "success",
+                data: CommentData { comment },
+            };
+            Ok(comment_response)
+        } else {
+            Err(NotFoundError(comment_id.to_string()))
+        }
     }
     // fn create_user_document(
     //     &self,

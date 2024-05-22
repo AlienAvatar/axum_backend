@@ -21,6 +21,12 @@ pub struct CreateCommentSchema {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct GetCommentsByArticleNumSchema {
+    pub article_num: String,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateCommentSchema {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct CommentModel {
     #[serde(rename = "_id")]
     pub id: Option<ObjectId>,
+    pub comment_id: String,
     pub article_num: String,
     pub author: String,
     pub content: String,
