@@ -1,8 +1,7 @@
-use axum::{response::{IntoResponse, Html}, routing::{get, post}, Router, Json, extract::Multipart, http::StatusCode};
+use axum::{extract::Multipart, http::{header::{ACCEPT_LANGUAGE, CONTENT_LANGUAGE}, HeaderName, StatusCode}, response::{Html, IntoResponse}, routing::{get, post}, Json, Router};
 use tokio::{self, fs, io::AsyncWriteExt};
 use config::Config;
 use serde::{Deserialize, Serialize};
-
 //mongoDB
 use mongodb::{bson::{doc, Document}, Collection};
 use mongodb::{options::ClientOptions, options::FindOptions};
@@ -55,12 +54,15 @@ async fn main() -> Result<(), MyError> {
             std::process::exit(1);
         }
     };
+    // 创建一个表示"token"头部的HeaderValue实例
+    let token_header = "token".parse::<HeaderName>().unwrap();
 
     let cors = CorsLayer::new()
-        .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+        .allow_origin("http://localhost:8080".parse::<HeaderValue>().unwrap())
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_credentials(true)
-        .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
+        .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE, CONTENT_LANGUAGE, ACCEPT_LANGUAGE, token_header]);
 
     let app = create_router(Arc::new(AppState { db: db.clone(), env: config.clone(), redis_client: redis_client.clone()})).layer(cors);
 
