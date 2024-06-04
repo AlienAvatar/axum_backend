@@ -10,6 +10,7 @@ pub struct UserModel {
     pub username: String,
     pub nickname: String,
     pub password: String,
+    pub avatar: String,
     pub email: String,
     pub is_delete: Option<bool>,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]

@@ -214,6 +214,8 @@ pub async fn login_user_handler(
             //生成token
             let password_key = res.data.user.password.clone();
             let user_id = res.data.user.id.clone();
+            let nickname = res.data.user.nickname.clone();
+            let avatar = res.data.user.avatar.clone();
 
             let is_valid = match PasswordHash::new(&password_key) {
                 Ok(parsed_hash) => Argon2::default()
@@ -237,7 +239,11 @@ pub async fn login_user_handler(
             )?;
 
             let mut response = Response::new(
-                json!({"status": "success", "access_token": access_token_details.token.unwrap()})
+                json!({
+                        "status": "success",
+                        "nickname": nickname,
+                        "avatar": avatar,
+                        "access_token": access_token_details.token.unwrap()})
                     .to_string(),
             );
 

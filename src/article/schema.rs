@@ -18,6 +18,7 @@ pub struct CreateArticleSchema {
     pub title: String,
     pub author: String,
     pub content: String,
+    pub type_sign: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

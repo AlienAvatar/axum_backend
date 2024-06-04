@@ -6,12 +6,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ArticleModel {
     #[serde(rename = "_id")]
-    pub id: Option<ObjectId>,
+    pub id: ObjectId,
     pub num: String,
     pub author: String,
     pub title: String,
     pub content: String,
-    pub good_count: i32,
+    pub support_count: i32,
+    pub views_count: i32,
+    pub type_sign: String,
     pub is_delete: Option<bool>,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: DateTime<Utc>,

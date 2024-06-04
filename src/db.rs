@@ -98,6 +98,7 @@ impl DB {
             id: Some(ObjectId::new()),
             username: body.username.to_owned(),
             nickname: body.nickname.to_owned(),
+            avatar: body.avatar.to_owned(),
             password: hashed_password,
             email: body.email.to_owned(),
             is_delete:  Some(false),
@@ -377,6 +378,7 @@ impl DB {
             username: user.username.to_owned(),
             nickname: user.nickname.to_owned(),
             password: user.password.to_owned(),
+            avatar: user.avatar.to_owned(),
             email: user.email.to_owned(),
             is_delete: user.is_delete,
             created_at: user.created_at,
@@ -405,6 +407,11 @@ impl DB {
             id: Some(ObjectId::new()),
             num: article.num.to_owned(),
             author: article.author.to_owned(),
+            title: article.title.to_owned(),
+            content: article.content.to_owned(),
+            support_count: article.support_count,
+            views_count: article.views_count,
+            type_sign: article.type_sign.to_owned(),
             is_delete: article.is_delete,
             created_at: article.created_at,
             updated_at: article.updated_at,
@@ -462,13 +469,16 @@ impl DB {
 
     pub async fn create_article(&self, body: &CreateArticleSchema) -> Result<SingleArticleResponse> {
         let num = rand_generate_num();
+        
         let article_moel = ArticleModel {
-            id: Some(ObjectId::new()),
+            id: ObjectId::new(),
             num: num.to_owned(),
             title: body.title.to_owned(),
             content: body.content.to_owned(),
             author: body.author.to_owned(),
-            good_count: 0,
+            support_count: 0,
+            views_count: 0,
+            type_sign: body.type_sign.to_owned(),
             is_delete:  Some(false),
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -603,7 +613,7 @@ impl DB {
         let mut comment_id = rand_generate_num();
         comment_id = comment_id + "_" + &body.article_num.to_owned();
         let comment_moel = CommentModel {
-            id: Some(ObjectId::new()),
+            id: ObjectId::new(),
             comment_id: comment_id,
             article_num: body.article_num.to_owned(),
             content: body.content.to_owned(),
@@ -714,11 +724,12 @@ impl DB {
 
     fn doc_to_comment(&self, comment: &CommentModel) -> Result<CommentResponse> {
         let comment_response = CommentResponse {
-            id: Some(ObjectId::new()),
+            id: comment.id.to_owned(),
             comment_id: comment.comment_id.to_owned(),
             article_num: comment.article_num.to_owned(),
             author: comment.author.to_owned(),
             content: comment.content.to_owned(),
+            good_count: comment.good_count,
             is_delete: comment.is_delete,
             created_at: comment.created_at,
             updated_at: comment.updated_at,

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CommentModel {
     #[serde(rename = "_id")]
-    pub id: Option<ObjectId>,
+    pub id: ObjectId,
     pub comment_id: String,
     pub article_num: String,
     pub author: String,

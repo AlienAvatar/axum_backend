@@ -15,6 +15,7 @@ pub struct UserResponse {
     pub username: String,
     pub nickname: String,
     pub password: String,
+    pub avatar: String,
     pub email: String,
     pub is_delete: Option<bool>,
     pub created_at: DateTime<Utc>,
