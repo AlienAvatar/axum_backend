@@ -46,7 +46,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         //article
         .route("/api/article/list/", get(article_list_handler))
         .route("/api/article/create/", post(create_article_handler))
-        .route("/api/article/get/:num", post(get_article_by_num_handler))
+        .route("/api/article/get/:num", get(get_article_by_num_handler))
         .route("/api/article/update/:title", post(update_article_by_num_handler))
         .route("/api/article/delete/:num", post(delete_article_by_num_handler))
         //comment

@@ -13,7 +13,7 @@ pub struct ArticleModel {
     pub content: String,
     pub support_count: i32,
     pub views_count: i32,
-    pub type_sign: String,
+    pub category: String,
     pub is_delete: Option<bool>,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: DateTime<Utc>,
