@@ -1,3 +1,4 @@
+use crate::article;
 use crate::comment::model::CommentModel;
 use crate::error::MyError;
 use crate::note::response::{NoteData, NoteListResponse, NoteResponse, SingleNoteResponse};
@@ -404,7 +405,7 @@ impl DB {
 
     fn doc_to_article(&self, article: &ArticleModel) -> Result<ArticleResponse> {
         let article_response = ArticleResponse {
-            id: Some(ObjectId::new()),
+            id: article.id,
             num: article.num.to_owned(),
             author: article.author.to_owned(),
             title: article.title.to_owned(),
@@ -554,8 +555,25 @@ impl DB {
     }
 
     pub async fn update_article(&self, num: &str, body: &UpdateArticleSchema) -> Result<SingleArticleResponse> {
+        let res = self.get_article(num).await?;
+        let res_article = res.data.article;
+
+        let article_moel = ArticleModel {
+            id: res_article.id,
+            num: res_article.num,
+            title: body.title.to_owned(),
+            content: body.content.to_owned(),
+            author: body.author.to_owned(),
+            support_count: 0,
+            views_count: 0,
+            category: body.category.to_owned(),
+            is_delete:  Some(false),
+            created_at: res_article.created_at,
+            updated_at: Utc::now(),
+        };
+        
         let update = doc! {
-            "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
+            "$set": bson::to_document(&article_moel).map_err(MongoSerializeBsonError)?,
         };
         let options = FindOneAndUpdateOptions::builder()
             .return_document(ReturnDocument::After)

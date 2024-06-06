@@ -23,13 +23,12 @@ pub struct CreateArticleSchema {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateArticleSchema {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub password: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
-    pub is_delete : Option<bool>,
+    pub title: String,
+    pub author: String,
+    pub content: String,
+    pub category: String,
+    pub support_count: i32,
+    pub views_count: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
