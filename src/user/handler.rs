@@ -121,10 +121,6 @@ pub async fn user_list_handler(
             return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
         }
     };
-
-    //dbg!(token_details);
-    //verify_token_handler(token, app_state);
-
     let Query(opts) = opts.unwrap_or_default();
 
     let limit = opts.limit.unwrap_or(10) as i64;
@@ -175,6 +171,7 @@ pub async fn get_user_by_username_handler(
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    print!("get_user_by_username_handler");
     let token = headers.get("token");
     if(token.is_none()){
         let error_response = serde_json::json!({
@@ -197,7 +194,41 @@ pub async fn get_user_by_username_handler(
         }
     };
 
-    match app_state.db.get_user(&username).await.map_err(MyError::from) {
+    match app_state.db.get_user("username",&username).await.map_err(MyError::from) {
+        Ok(res) => Ok(Json(res)),
+        Err(e) => Err(e.into()),
+    }
+}
+
+//username也可以
+pub async fn get_user_by_id_handler(
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    State(app_state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let token = headers.get("token");
+    if(token.is_none()){
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": "Token is empty"
+        });
+        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    }
+
+    let tokenstr = token.unwrap().to_str().unwrap();
+    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
+    {
+        Ok(token_details) => token_details,
+        Err(e) => {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format_args!("{:?}", e)
+            });
+            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+        }
+    };
+
+    match app_state.db.get_user("id", &id).await.map_err(MyError::from) {
         Ok(res) => Ok(Json(res)),
         Err(e) => Err(e.into()),
     }
@@ -209,11 +240,11 @@ pub async fn login_user_handler(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     log::error!("login_user_handler: {:?}", &body);
 
-    match app_state.db.get_user(&body.username).await.map_err(MyError::from) {
+    match app_state.db.get_user("username",&body.username).await.map_err(MyError::from) {
         Ok(res) => {
             //生成token
             let password_key = res.data.user.password.clone();
-            let user_id = res.data.user.id.clone();
+            let user_sys_id = res.data.user.sys_id.clone();
             let nickname = res.data.user.nickname.clone();
             let avatar = res.data.user.avatar.clone();
 
@@ -233,7 +264,7 @@ pub async fn login_user_handler(
             }
             
             let access_token_details = generate_token(
-                user_id,
+                user_sys_id,
                 app_state.env.access_token_max_age,
                 app_state.env.access_token_private_key.to_owned(),
             )?;

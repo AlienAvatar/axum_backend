@@ -15,7 +15,7 @@ use crate::{
         health_checker_handler, note_list_handler,
     }, 
     user::handler::{
-        create_user_handler, delete_user_handler, get_user_by_username_handler, login_user_handler, logout_user_handler, update_user_handler, user_list_handler
+        create_user_handler, delete_user_handler, get_user_by_username_handler, login_user_handler, logout_user_handler, update_user_handler, user_list_handler, get_user_by_id_handler
     },
     comment::handler::{
         create_comment_handler, comment_list_handler, comment_list_by_article_id_handler, get_comment_by_id_handler,
@@ -38,7 +38,8 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         // user
         .route("/api/user/list/", get(user_list_handler))
         .route("/api/user/create/", post(create_user_handler))
-        .route("/api/user/get/:username", get(get_user_by_username_handler))
+        .route("/api/user/get_uername/:username", get(get_user_by_username_handler))
+        .route("/api/user/get_id/:id", get(get_user_by_id_handler))
         .route("/api/user/login/", post(login_user_handler))
         .route("/api/user/logout/", post(logout_user_handler))
         .route("/api/user/update/:username", post(update_user_handler))
@@ -53,7 +54,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/comment/list/", get(comment_list_handler))
         .route("/api/comment/list/:article_id", get(comment_list_by_article_id_handler))
         .route("/api/comment/create/", post(create_comment_handler))
-        .route("/api/comment/get/: id", get(get_comment_by_id_handler))
+        .route("/api/comment/get/:id", get(get_comment_by_id_handler))
         .route("/api/comment/delete/:comment_id", post(delete_comment_by_comment_id_handler))
         .route("/api/comment/update/:comment_id", post(update_comment_by_id_handler))
         .with_state(app_state)

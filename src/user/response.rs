@@ -11,7 +11,8 @@ pub struct GenericResponse {
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
 pub struct UserResponse {
-    pub id: Option<ObjectId>,
+    pub sys_id: Option<ObjectId>,
+    pub id: String,
     pub username: String,
     pub nickname: String,
     pub password: String,

@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserModel {
-    pub id: Option<ObjectId>,
+    #[serde(rename = "_id")]
+    pub sys_id: Option<ObjectId>,
+    pub id: String,
     pub username: String,
     pub nickname: String,
     pub password: String,

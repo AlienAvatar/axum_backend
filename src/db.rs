@@ -94,9 +94,10 @@ impl DB {
     }
 
     pub async fn create_user(&self, body: &CreateUserSchema, hashed_password: String) -> Result<SingleUserResponse> {
-       
+        let id = rand_generate_num();
         let user_moel = UserModel {
-            id: Some(ObjectId::new()),
+            sys_id: Some(ObjectId::new()),
+            id: id,
             username: body.username.to_owned(),
             nickname: body.nickname.to_owned(),
             avatar: body.avatar.to_owned(),
@@ -231,12 +232,12 @@ impl DB {
         })
     }
 
-    pub async fn get_user(&self, username: &str) -> Result<SingleUserResponse> {
+    pub async fn get_user(&self, key: &str, value: &str, ) -> Result<SingleUserResponse> {
         //let oid = ObjectId::from_str(id).map_err(|_| InvalidIDError(id.to_owned()))?;
 
         let user_doc = self
             .user_collection
-            .find_one(doc! {"username": username }, None)
+            .find_one(doc! {key: value }, None)
             .await
             .map_err(MongoQueryError)?;
 
@@ -248,7 +249,7 @@ impl DB {
                     data: UserData { user },
                 })
             }
-            None => Err(NotFoundError(username.to_string())),
+            None => Err(NotFoundError(key.to_string())),
         }
     }
 
@@ -375,7 +376,8 @@ impl DB {
 
     fn doc_to_user(&self, user: &UserModel) -> Result<UserResponse> {
         let user_response = UserResponse {
-            id: Some(ObjectId::new()),
+            sys_id: Some(ObjectId::new()),
+            id: user.id.to_owned(),
             username: user.username.to_owned(),
             nickname: user.nickname.to_owned(),
             password: user.password.to_owned(),
