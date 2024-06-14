@@ -13,8 +13,8 @@ pub struct ArticleListResponse {
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
 pub struct ArticleResponse {
-    pub id: ObjectId,
-    pub num: String,
+    pub sys_id: ObjectId,
+    pub id: String,
     pub author: String,
     pub title: String,
     pub content: String,

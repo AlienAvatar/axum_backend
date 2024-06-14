@@ -1,5 +1,5 @@
 use crate::article;
-use crate::comment::model::CommentModel;
+use crate::comment::model::{CommentModel, UpdateCommentModel};
 use crate::error::MyError;
 use crate::note::response::{NoteData, NoteListResponse, NoteResponse, SingleNoteResponse};
 use crate::user::response::{UserData, UserListResponse, UserResponse, SingleUserResponse};
@@ -405,8 +405,8 @@ impl DB {
 
     fn doc_to_article(&self, article: &ArticleModel) -> Result<ArticleResponse> {
         let article_response = ArticleResponse {
-            id: article.id,
-            num: article.num.to_owned(),
+            sys_id: article.sys_id,
+            id: article.id.to_owned(),
             author: article.author.to_owned(),
             title: article.title.to_owned(),
             content: article.content.to_owned(),
@@ -469,11 +469,11 @@ impl DB {
     }
 
     pub async fn create_article(&self, body: &CreateArticleSchema) -> Result<SingleArticleResponse> {
-        let num = rand_generate_num();
+        let id = rand_generate_num();
         
         let article_moel = ArticleModel {
-            id: ObjectId::new(),
-            num: num.to_owned(),
+            sys_id: ObjectId::new(),
+            id: id.to_owned(),
             title: body.title.to_owned(),
             content: body.content.to_owned(),
             author: body.author.to_owned(),
@@ -488,7 +488,7 @@ impl DB {
         //把articlename作为构建唯一索引
         let options = IndexOptions::builder().unique(false).build();
         let index = IndexModel::builder()
-            .keys(doc! { &article_moel.num: 1 })
+            .keys(doc! { &article_moel.id: 1 })
             .options(options)
             .build();
         match self.article_collection.create_index(index, None).await {
@@ -533,12 +533,10 @@ impl DB {
         })
     }
 
-    pub async fn get_article(&self, num: &str) -> Result<SingleArticleResponse> {
-        //let oid = ObjectId::from_str(id).map_err(|_| InvalidIDError(id.to_owned()))?;
-    
+    pub async fn get_article(&self, id: &str) -> Result<SingleArticleResponse> {
         let article_doc = self
             .article_collection
-            .find_one(doc! {"num": num }, None)
+            .find_one(doc! {"id": id }, None)
             .await
             .map_err(MongoQueryError)?;
     
@@ -550,30 +548,13 @@ impl DB {
                     data: ArticleData { article },
                 })
             }
-            None => Err(NotFoundError(num.to_string())),
+            None => Err(NotFoundError(id.to_string())),
         }
     }
 
-    pub async fn update_article(&self, num: &str, body: &UpdateArticleSchema) -> Result<SingleArticleResponse> {
-        let res = self.get_article(num).await?;
-        let res_article = res.data.article;
-
-        let article_moel = ArticleModel {
-            id: res_article.id,
-            num: res_article.num,
-            title: body.title.to_owned(),
-            content: body.content.to_owned(),
-            author: body.author.to_owned(),
-            support_count: 0,
-            views_count: 0,
-            category: body.category.to_owned(),
-            is_delete:  Some(false),
-            created_at: res_article.created_at,
-            updated_at: Utc::now(),
-        };
-        
+    pub async fn update_article(&self, id: &str, body: &UpdateArticleSchema) -> Result<SingleArticleResponse> {
         let update = doc! {
-            "$set": bson::to_document(&article_moel).map_err(MongoSerializeBsonError)?,
+            "$set": bson::to_document(&body).map_err(MongoSerializeBsonError)?,
         };
         let options = FindOneAndUpdateOptions::builder()
             .return_document(ReturnDocument::After)
@@ -581,7 +562,7 @@ impl DB {
     
         if let Some(doc) = self
             .article_collection
-            .find_one_and_update(doc! {"num": num}, update, options)
+            .find_one_and_update(doc! {"id": id}, update, options)
             .await
             .map_err(MongoQueryError)?
         {
@@ -592,11 +573,11 @@ impl DB {
             };
             Ok(article_response)
         } else {
-            Err(NotFoundError(num.to_string()))
+            Err(NotFoundError(id.to_string()))
         }
     }
     
-    pub async fn delete_article(&self, num: &str) -> Result<SingleArticleResponse> {
+    pub async fn delete_article(&self, id: &str) -> Result<SingleArticleResponse> {
         let article_moel = DeleteArticleSchema {
             is_delete:  Some(true),
             updated_at: Utc::now(),
@@ -612,7 +593,7 @@ impl DB {
     
         if let Some(doc) = self
             .article_collection
-            .find_one_and_update(doc! {"num": num}, update, options)
+            .find_one_and_update(doc! {"id": id}, update, options)
             .await
             .map_err(MongoQueryError)?
         {
@@ -623,17 +604,17 @@ impl DB {
             };
             Ok(article_response)
         } else {
-            Err(NotFoundError(num.to_string()))
+            Err(NotFoundError(id.to_string()))
         }
     }
 
     pub async fn create_comment(&self, body: &CreateCommentSchema) -> Result<SingleCommentResponse> {
         let mut comment_id = rand_generate_num();
-        comment_id = comment_id + "_" + &body.article_num.to_owned();
+        comment_id = comment_id + "_" + &body.article_id.to_owned();
         let comment_moel = CommentModel {
-            id: ObjectId::new(),
-            comment_id: comment_id,
-            article_num: body.article_num.to_owned(),
+            sys_id: ObjectId::new(),
+            id: comment_id,
+            article_id: body.article_id.to_owned(),
             content: body.content.to_owned(),
             author: body.author.to_owned(),
             good_count: 0,
@@ -645,7 +626,7 @@ impl DB {
         //把commentname作为构建唯一索引
         let options = IndexOptions::builder().unique(false).build();
         let index = IndexModel::builder()
-            .keys(doc! { &comment_moel.comment_id: 1 })
+            .keys(doc! { &comment_moel.id: 1 })
             .options(options)
             .build();
         match self.comment_collection.create_index(index, None).await {
@@ -715,7 +696,7 @@ impl DB {
         })
     }
     
-    pub async fn fetch_comments_by_aritcle_num(&self, article_num: &str, limit: i64, page: i64) -> Result<CommentListResponse> {
+    pub async fn fetch_comments_by_aritcle_id(&self, article_id: &str, limit: i64, page: i64) -> Result<CommentListResponse> {
         let find_options = FindOptions::builder()
             .limit(limit)
             .skip(u64::try_from((page - 1) * limit).unwrap())
@@ -723,7 +704,7 @@ impl DB {
 
         let mut cursor = self
             .comment_collection
-            .find(doc!{"article_num" : article_num}, find_options)
+            .find(doc!{"article_id" : article_id}, find_options)
             .await
             .map_err(MongoQueryError)?;
     
@@ -742,9 +723,9 @@ impl DB {
 
     fn doc_to_comment(&self, comment: &CommentModel) -> Result<CommentResponse> {
         let comment_response = CommentResponse {
+            sys_id: comment.sys_id.to_owned(),
             id: comment.id.to_owned(),
-            comment_id: comment.comment_id.to_owned(),
-            article_num: comment.article_num.to_owned(),
+            article_id: comment.article_id.to_owned(),
             author: comment.author.to_owned(),
             content: comment.content.to_owned(),
             good_count: comment.good_count,
@@ -756,10 +737,10 @@ impl DB {
         Ok(comment_response)
     }
 
-    pub async fn get_comment_by_comment_id(&self, comment_id: &str) -> Result<SingleCommentResponse> {
+    pub async fn get_comment_by_comment_id(&self, id: &str) -> Result<SingleCommentResponse> {
         let comment_doc = self
             .comment_collection
-            .find_one(doc! {"comment_id": comment_id }, None)
+            .find_one(doc! {"id": id }, None)
             .await
             .map_err(MongoQueryError)?;
     
@@ -771,11 +752,11 @@ impl DB {
                     data: CommentData { comment },
                 })
             }
-            None => Err(NotFoundError(comment_id.to_string())),
+            None => Err(NotFoundError(id.to_string())),
         }
     }
 
-    pub async fn delete_comment_by_comment_id(&self, comment_id: &str) -> Result<SingleCommentResponse> {
+    pub async fn delete_comment_by_id(&self, id: &str) -> Result<SingleCommentResponse> {
         let comment_moel = DeleteCommentSchema {
             is_delete:  Some(true),
             updated_at: Utc::now(),
@@ -791,7 +772,7 @@ impl DB {
     
         if let Some(doc) = self
             .comment_collection
-            .find_one_and_update(doc! {"comment_id": comment_id}, update, options)
+            .find_one_and_update(doc! {"id": id}, update, options)
             .await
             .map_err(MongoQueryError)?
         {
@@ -802,13 +783,23 @@ impl DB {
             };
             Ok(comment_response)
         } else {
-            Err(NotFoundError(comment_id.to_string()))
+            Err(NotFoundError(id.to_string()))
         }
     }
 
-    pub async fn update_comment_by_id(&self, comment_id: &str, body: &UpdateCommentSchema) -> Result<SingleCommentResponse> {
+    pub async fn update_comment_by_id(&self, id: &str, body: &UpdateCommentSchema) -> Result<SingleCommentResponse> {
+        let update_comment_moel = UpdateCommentModel {
+            id: id.to_owned(),
+            article_id: body.article_id.to_owned().unwrap(),
+            author: body.author.to_owned().unwrap(),
+            content: body.content.to_owned().unwrap(),
+            good_count: body.good_count.unwrap(),
+            is_delete: Some(false),
+            updated_at: Utc::now(),
+        };
+
         let update = doc! {
-            "$set": bson::to_document(body).map_err(MongoSerializeBsonError)?,
+            "$set": bson::to_document(&update_comment_moel).map_err(MongoSerializeBsonError)?,
         };
         let options = FindOneAndUpdateOptions::builder()
             .return_document(ReturnDocument::After)
@@ -816,7 +807,7 @@ impl DB {
     
         if let Some(doc) = self
             .comment_collection
-            .find_one_and_update(doc! {"comment_id": comment_id}, update, options)
+            .find_one_and_update(doc! {"id": id}, update, options)
             .await
             .map_err(MongoQueryError)?
         {
@@ -827,7 +818,7 @@ impl DB {
             };
             Ok(comment_response)
         } else {
-            Err(NotFoundError(comment_id.to_string()))
+            Err(NotFoundError(id.to_string()))
         }
     }
     // fn create_user_document(

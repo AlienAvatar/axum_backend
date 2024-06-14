@@ -15,27 +15,28 @@ pub struct ParamOptions {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateCommentSchema {
-    pub article_num: String,
+    pub article_id: String,
     pub author: String,
     pub content: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetCommentsByArticleNumSchema {
-    pub article_num: String,
+    pub article_id: String,
 }
 
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateCommentSchema {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub password: Option<String>,
+    pub article_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
-    pub is_delete : Option<bool>,
+    pub good_count: Option<i32>,
 }
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCommentSchema {

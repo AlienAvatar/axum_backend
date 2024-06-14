@@ -13,10 +13,10 @@ pub struct CommentListResponse {
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
 pub struct CommentResponse {
-    pub id: ObjectId,
-    pub comment_id: String,
+    pub sys_id: ObjectId,
+    pub id: String,
     pub content: String,
-    pub article_num: String,
+    pub article_id: String,
     pub author: String,
     pub good_count: i32,
     pub is_delete: Option<bool>,
@@ -39,5 +39,6 @@ pub struct SingleCommentResponse {
 #[derive(Serialize, Debug)]
 pub struct MessageResponse {
     pub code : u8,
+    pub status : String,
     pub message : String,
 }

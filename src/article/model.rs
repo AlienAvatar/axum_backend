@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ArticleModel {
     #[serde(rename = "_id")]
-    pub id: ObjectId,
-    pub num: String,
+    pub sys_id: ObjectId,
+    pub id: String,
     pub author: String,
     pub title: String,
     pub content: String,

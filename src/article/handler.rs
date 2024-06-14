@@ -106,8 +106,8 @@ pub async fn create_article_handler(
     }
 }
 
-pub async fn get_article_by_num_handler(
-    Path(num): Path<String>,
+pub async fn get_article_by_id_handler(
+    Path(id): Path<String>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -133,14 +133,14 @@ pub async fn get_article_by_num_handler(
         }
     };
 
-    match app_state.db.get_article(&num).await.map_err(MyError::from) {
+    match app_state.db.get_article(&id).await.map_err(MyError::from) {
         Ok(res) => Ok(Json(res)),
         Err(e) => Err(e.into()),
     }
 }
 
-pub async fn update_article_by_num_handler(
-    Path(num): Path<String>,
+pub async fn update_article_by_id_handler(
+    Path(id): Path<String>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
     Json(body): Json<UpdateArticleSchema>,
@@ -169,7 +169,7 @@ pub async fn update_article_by_num_handler(
 
     match app_state
         .db
-        .update_article(&num, &body)
+        .update_article(&id, &body)
         .await
         .map_err(MyError::from)
     {
@@ -178,8 +178,8 @@ pub async fn update_article_by_num_handler(
     }
 }
 
-pub async fn delete_article_by_num_handler(
-    Path(num): Path<String>,
+pub async fn delete_article_by_id_handler(
+    Path(id): Path<String>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -206,10 +206,10 @@ pub async fn delete_article_by_num_handler(
         }
     };
 
-    match app_state.db.delete_article(&num).await.map_err(MyError::from) {
+    match app_state.db.delete_article(&id).await.map_err(MyError::from) {
         Ok(res) => 
         {
-            if(res.data.article.num == num
+            if(res.data.article.id == id
                 && res.data.article.is_delete == Some(true))
             {
                 let message = MessageResponse {

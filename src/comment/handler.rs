@@ -107,8 +107,8 @@ pub async fn comment_list_handler(
     }
 }
 
-pub async fn comment_list_by_aritcle_num_handler(
-    Path(article_num): Path<String>,
+pub async fn comment_list_by_article_id_handler(
+    Path(article_id): Path<String>,
     opts: Option<Query<FilterOptions>>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
@@ -145,7 +145,7 @@ pub async fn comment_list_by_aritcle_num_handler(
         
     match app_state
         .db
-        .fetch_comments_by_aritcle_num(&article_num, limit, page)
+        .fetch_comments_by_aritcle_id(&article_id, limit, page)
         .await
         .map_err(MyError::from)
     {
@@ -154,8 +154,8 @@ pub async fn comment_list_by_aritcle_num_handler(
     }
 }
 
-pub async fn get_comment_by_comment_id_handler(
-    Path(comment_id): Path<String>,
+pub async fn get_comment_by_id_handler(
+    Path(id): Path<String>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -181,14 +181,14 @@ pub async fn get_comment_by_comment_id_handler(
         }
     };
 
-    match app_state.db.get_comment_by_comment_id(&comment_id).await.map_err(MyError::from) {
+    match app_state.db.get_comment_by_comment_id(&id).await.map_err(MyError::from) {
         Ok(res) => Ok(Json(res)),
         Err(e) => Err(e.into()),
     }
 }
 
 pub async fn delete_comment_by_comment_id_handler(
-    Path(comment_id): Path<String>,
+    Path(id): Path<String>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -215,21 +215,23 @@ pub async fn delete_comment_by_comment_id_handler(
         }
     };
 
-    match app_state.db.delete_comment_by_comment_id(&comment_id).await.map_err(MyError::from) {
+    match app_state.db.delete_comment_by_id(&id).await.map_err(MyError::from) {
         Ok(res) => 
         {
-            if(res.data.comment.comment_id == comment_id
+            if(res.data.comment.id == id
                 && res.data.comment.is_delete == Some(true))
             {
                 let message = MessageResponse {
                     code: 200,
-                    message: "success".to_string(),
+                    status: "success".to_string(),
+                    message: "delete success".to_string(),
                 };
                 return Ok((StatusCode::ACCEPTED, Json(message)))
             }else{
                 let message = MessageResponse {
                     code: 200,
-                    message: "failure".to_string(),
+                    status: "failure".to_string(),
+                    message: "delete failure".to_string(),
                 };
                 return Ok((StatusCode::BAD_REQUEST, Json(message)))
             }
