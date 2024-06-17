@@ -23,13 +23,11 @@ pub struct CreateUserSchema {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateUserSchema {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub password: Option<String>,
+    pub password: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nickname: Option<String>,
-    pub is_delete : Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

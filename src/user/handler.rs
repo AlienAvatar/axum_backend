@@ -153,9 +153,7 @@ pub async fn create_user_handler(
         (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
     })
     .map(|hash| hash.to_string())?;
-    
 
-    //&body.password = hashed_password;
     match app_state
         .db
         .create_user(&body, hashed_password)
@@ -327,9 +325,27 @@ pub async fn update_user_handler(
         }
     };
 
+    //加密
+    let salt = SaltString::generate(&mut OsRng);
+    let hashed_password = Argon2::default()
+    .hash_password(&body.password.as_bytes(), &salt)
+    .map_err(|e| {
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": format!("Error while hashing password: {}", e),
+        });
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+    })
+    .map(|hash| hash.to_string())?;
+
+    let update_body = UpdateUserSchema{
+        password: hashed_password,
+        ..body
+    };
+
     match app_state
         .db
-        .update_user(&username, &body)
+        .update_user(&username, &update_body)
         .await
         .map_err(MyError::from)
     {
@@ -338,8 +354,8 @@ pub async fn update_user_handler(
     }
 }
 
-pub async fn delete_user_handler(
-    Path(username): Path<String>,
+pub async fn delete_user_by_id_handler(
+    Path(id): Path<String>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -366,21 +382,23 @@ pub async fn delete_user_handler(
         }
     };
 
-    match app_state.db.delete_user(&username).await.map_err(MyError::from) {
+    match app_state.db.delete_user(&id).await.map_err(MyError::from) {
         Ok(res) => 
         {
-            if(res.data.user.username == username
+            if(res.data.user.id == id
                 && res.data.user.is_delete == Some(true))
             {
                 let message = MessageResponse {
                     code: 200,
-                    message: "success".to_string(),
+                    status: "success".to_string(),
+                    message: "deleted success".to_string(),
                 };
                 return Ok((StatusCode::ACCEPTED, Json(message)))
             }else{
                 let message = MessageResponse {
                     code: 200,
-                    message: "failure".to_string(),
+                    status: "failure".to_string(),
+                    message: "deleted failure".to_string(),
                 };
                 return Ok((StatusCode::BAD_REQUEST, Json(message)))
             }

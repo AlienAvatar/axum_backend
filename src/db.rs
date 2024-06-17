@@ -327,7 +327,7 @@ impl DB {
         }
     }
     
-    pub async fn delete_user(&self, username: &str) -> Result<SingleUserResponse> {
+    pub async fn delete_user(&self, id: &str) -> Result<SingleUserResponse> {
         let user_moel = DeleteUserSchema {
             is_delete:  Some(true),
             updated_at: Utc::now(),
@@ -343,7 +343,7 @@ impl DB {
     
         if let Some(doc) = self
             .user_collection
-            .find_one_and_update(doc! {"username": username}, update, options)
+            .find_one_and_update(doc! {"id": id}, update, options)
             .await
             .map_err(MongoQueryError)?
         {
@@ -354,7 +354,7 @@ impl DB {
             };
             Ok(user_response)
         } else {
-            Err(NotFoundError(username.to_string()))
+            Err(NotFoundError(id.to_string()))
         }
     }
 

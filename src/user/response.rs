@@ -51,5 +51,6 @@ pub struct TokenMessageResponse {
 #[derive(Serialize, Debug)]
 pub struct MessageResponse {
     pub code : u8,
+    pub status : String,
     pub message : String,
 }

@@ -214,13 +214,15 @@ pub async fn delete_article_by_id_handler(
             {
                 let message = MessageResponse {
                     code: 200,
-                    message: "success".to_string(),
+                    status: "success".to_string(),
+                    message: "delete success".to_string(),
                 };
                 return Ok((StatusCode::ACCEPTED, Json(message)))
             }else{
                 let message = MessageResponse {
                     code: 200,
-                    message: "failure".to_string(),
+                    status: "failure".to_string(),
+                    message: "delete failure".to_string(),
                 };
                 return Ok((StatusCode::BAD_REQUEST, Json(message)))
             }
