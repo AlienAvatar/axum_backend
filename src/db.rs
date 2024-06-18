@@ -1,4 +1,3 @@
-use crate::article;
 use crate::comment::model::{CommentModel, UpdateCommentModel};
 use crate::error::MyError;
 use crate::note::response::{NoteData, NoteListResponse, NoteResponse, SingleNoteResponse};
@@ -68,15 +67,22 @@ impl DB {
         })
     }
 
-    pub async fn fetch_users(&self, limit: i64, page: i64) -> Result<UserListResponse> {
+    pub async fn fetch_users(&self, limit: i64, page: i64, id: &str, nickname: &str, username: &str, is_delete: &bool) -> Result<UserListResponse> {
         let find_options = FindOptions::builder()
             .limit(limit)
             .skip(u64::try_from((page - 1) * limit).unwrap())
             .build();
 
+        let filter = doc! { 
+            "id": { "$regex": id, "$options": "i" }, 
+            "nickname":{"$regex": nickname, "$options": "i"}, 
+            "username":{"$regex": username, "$options": "i"},
+            "is_delete": is_delete,
+        };
+        
         let mut cursor = self
             .user_collection
-            .find(None, find_options)
+            .find(filter, find_options)
             .await
             .map_err(MongoQueryError)?;
 

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     extract::{Path, Query, State},
@@ -6,14 +6,31 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use mongodb::bson::Array;
 
 use crate::{
     error::MyError,
     note::schema::{CreateNoteSchema, FilterOptions, UpdateNoteSchema},
     AppState,
 };
+use serde::{Deserialize, Serialize};
+#[derive(Deserialize)]
+pub struct SubjectArgsOpt {
+    pub page: Option<i32>,
+    pub keyword: Option<String>,
+}
 
-pub async fn health_checker_handler() -> impl IntoResponse {
+pub async fn health_checker_handler(
+    Query(args): Query<HashMap<String, String>>
+) -> impl IntoResponse {
+    let a = format!("{:?}", args);
+    println!("{:?}", args);
+    // let page = args.page.unwrap_or(0);
+    // let keyword = args.keyword.unwrap_or("".to_string());
+    // format!("Page {}, keyword: {} of subjects", page, keyword);
+    // println!("page {}",page);
+    // println!("keyword {}",keyword);
+
     const MESSAGE: &str = "RESTful API in Rust using Axum Framework and MongoDB";
 
     let json_response = serde_json::json!({

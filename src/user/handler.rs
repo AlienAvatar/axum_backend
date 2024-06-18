@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use axum::{
     extract::{Path, Query, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
@@ -9,16 +9,20 @@ use mongodb::bson::oid::ObjectId;
 
 use crate::{
     error::MyError, token::{self, verify_jwt_token, TokenDetails}, user::{
-        model::TokenClaims, response::{MessageResponse, TokenMessageResponse}, schema::{CreateUserSchema, FilterOptions, UpdateUserSchema, VaildUserSchema}
+        model::TokenClaims, 
+        response::{MessageResponse, TokenMessageResponse}, 
+        schema::{CreateUserSchema, FilterOptions, UpdateUserSchema, VaildUserSchema}
     }, AppState
 };
 use jsonwebtoken::{decode, encode, Algorithm, EncodingKey, Header};
 use chrono::{DateTime, Utc};
-use axum_extra::extract::cookie::{Cookie, SameSite, CookieJar};
+use axum_extra::extract::cookie::{Cookie, SameSite};
 use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use rand_core::OsRng;
 use serde_json::json;
 use redis::AsyncCommands;
+
+use super::schema::ParamOptions;
 
 fn generate_token(
     id: Option<ObjectId>,
@@ -125,10 +129,14 @@ pub async fn user_list_handler(
 
     let limit = opts.limit.unwrap_or(10) as i64;
     let page = opts.page.unwrap_or(1) as i64;
+    let id = opts.id.unwrap_or("".to_string());
+    let nickname = opts.nickname.unwrap_or("".to_string());
+    let username = opts.username.unwrap_or("".to_string());
+    let is_delete = opts.is_delete.unwrap_or(false);
 
     match app_state
         .db
-        .fetch_users(limit, page)
+        .fetch_users(limit, page, id.as_str(), nickname.as_str(), username.as_str(), &is_delete)
         .await
         .map_err(MyError::from)
     {
@@ -406,6 +414,67 @@ pub async fn delete_user_by_id_handler(
         }
         Err(e) => Err(e.into()),
     }
+}
+
+pub async fn delete_user_by_ids_handler(
+    Query(map): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+    State(app_state): State<Arc<AppState>>
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    //验证token
+    let token = headers.get("token");
+    if(token.is_none()){
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": "Token is empty"
+        });
+        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    }
+
+    let tokenstr = token.unwrap().to_str().unwrap();
+    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
+    {
+        Ok(token_details) => token_details,
+        Err(e) => {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format_args!("{:?}", e)
+            });
+            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+        }
+    };
+
+    for (key, value) in map {
+        let id = value;
+        match app_state.db.delete_user(&id).await.map_err(MyError::from) {
+            Ok(res) => 
+            {
+                if(res.data.user.id == id
+                    && res.data.user.is_delete == Some(true))
+                {
+                    continue;
+                }else{
+                    let id_mes = format!("id {:?}", res.data.user.id);
+                    let message = id_mes.to_string() + " deleted failure";
+                    let message = MessageResponse {
+                        code: 200,
+                        status: "failure".to_string(),
+                        message: message,
+                    };
+                    return Ok((StatusCode::ACCEPTED, Json(message)))
+                }
+    
+            }
+            Err(e) => return Err(e.into()),
+        }
+    };
+
+    let message = MessageResponse {
+        code: 200,
+        status: "success".to_string(),
+        message: "deleted success".to_string(),
+    };
+    return Ok((StatusCode::ACCEPTED, Json(message)))
 }
 
 pub async fn logout_user_handler() 
