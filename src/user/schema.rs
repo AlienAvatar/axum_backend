@@ -11,11 +11,6 @@ pub struct FilterOptions {
     pub is_delete: Option<bool>,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct ParamOptions {
-
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateUserSchema {
     pub username: String,
@@ -27,6 +22,7 @@ pub struct CreateUserSchema {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateUserSchema {
+    //暂时不能更改password
     pub password: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,

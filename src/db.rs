@@ -451,15 +451,21 @@ impl DB {
         Ok(doc_with_dates)
     }
 
-    pub async fn fetch_articles(&self, limit: i64, page: i64) -> Result<ArticleListResponse> {
+    pub async fn fetch_articles(&self, limit: i64, page: i64, id: &str, title: &str, author: &str, is_delete: &bool) -> Result<ArticleListResponse> {
         let find_options = FindOptions::builder()
             .limit(limit)
             .skip(u64::try_from((page - 1) * limit).unwrap())
             .build();
 
+        let filter = doc! { 
+            "id": { "$regex": id, "$options": "i" }, 
+            "title":{"$regex": title, "$options": "i"}, 
+            "author":{"$regex": author, "$options": "i"},
+            "is_delete": is_delete,
+        };
         let mut cursor = self
             .article_collection
-            .find(None, find_options)
+            .find(filter, find_options)
             .await
             .map_err(MongoQueryError)?;
 

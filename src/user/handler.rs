@@ -8,7 +8,8 @@ use axum::{
 use mongodb::bson::oid::ObjectId;
 
 use crate::{
-    error::MyError, token::{self, verify_jwt_token, TokenDetails}, user::{
+    error::MyError, token::{self, verify_jwt_token, TokenDetails}, 
+    user::{
         model::TokenClaims, 
         response::{MessageResponse, TokenMessageResponse}, 
         schema::{CreateUserSchema, FilterOptions, UpdateUserSchema, VaildUserSchema}
@@ -21,8 +22,6 @@ use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, Pa
 use rand_core::OsRng;
 use serde_json::json;
 use redis::AsyncCommands;
-
-use super::schema::ParamOptions;
 
 fn generate_token(
     id: Option<ObjectId>,
@@ -133,7 +132,10 @@ pub async fn user_list_handler(
     let nickname = opts.nickname.unwrap_or("".to_string());
     let username = opts.username.unwrap_or("".to_string());
     let is_delete = opts.is_delete.unwrap_or(false);
-
+    println!("id: {}", id);")";
+    println!("nickname: {}", nickname);")";
+    println!("username: {}", username);")";
+    println!("is_delete: {}", is_delete);")";
     match app_state
         .db
         .fetch_users(limit, page, id.as_str(), nickname.as_str(), username.as_str(), &is_delete)

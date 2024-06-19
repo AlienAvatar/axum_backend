@@ -8,7 +8,7 @@ use axum::{
 use crate::{
     article::handler::{
         article_list_handler, create_article_handler, get_article_by_id_handler,
-        update_article_by_id_handler, delete_article_by_id_handler,
+        update_article_by_id_handler, delete_article_by_id_handler,delete_article_by_ids_handler,
     }, 
     note::handler::{
         create_note_handler, delete_note_handler, edit_note_handler, get_note_handler,
@@ -53,6 +53,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/article/get/:id", get(get_article_by_id_handler))
         .route("/api/article/update/:id", post(update_article_by_id_handler))
         .route("/api/article/delete/:id", post(delete_article_by_id_handler))
+        .route("/api/article/delete_many/", post(delete_article_by_ids_handler))
         //comment
         .route("/api/comment/list/", get(comment_list_handler))
         .route("/api/comment/list/:article_id", get(comment_list_by_article_id_handler))

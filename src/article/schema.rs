@@ -6,6 +6,10 @@ use mongodb::bson::{self};
 pub struct FilterOptions {
     pub page: Option<usize>,
     pub limit: Option<usize>,
+    pub id: Option<String>,
+    pub title: Option<String>,
+    pub author: Option<String>,
+    pub is_delete: Option<bool>,
 }
 
 #[derive(Deserialize, Debug)]
