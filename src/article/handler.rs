@@ -58,7 +58,7 @@ pub async fn article_list_handler(
     println!("is_delete: {}", is_delete);")";
     match app_state
         .db
-        .fetch_articles(limit, page,title.as_str(), id.as_str(), author.as_str(), &is_delete)
+        .fetch_articles(limit, page,id.as_str(), title.as_str(), author.as_str(), &is_delete)
         .await
         .map_err(MyError::from)
     {

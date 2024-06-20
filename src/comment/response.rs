@@ -18,7 +18,7 @@ pub struct CommentResponse {
     pub content: String,
     pub article_id: String,
     pub author: String,
-    pub good_count: i32,
+    pub support_count: i32,
     pub is_delete: Option<bool>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

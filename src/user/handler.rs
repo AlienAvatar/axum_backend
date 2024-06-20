@@ -15,13 +15,23 @@ use crate::{
         schema::{CreateUserSchema, FilterOptions, UpdateUserSchema, VaildUserSchema}
     }, AppState
 };
-use jsonwebtoken::{decode, encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{decode, encode, EncodingKey, Header};
 use chrono::{DateTime, Utc};
 use axum_extra::extract::cookie::{Cookie, SameSite};
-use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use argon2::{password_hash::{Encoding, SaltString}, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use rand_core::OsRng;
 use serde_json::json;
 use redis::AsyncCommands;
+use ring::error::Unspecified;
+use ring::rand::SecureRandom;
+use ring::{digest, pbkdf2, rand};
+use std::num::NonZeroU32;
+use ring::{aead};
+use ring::aead::{Algorithm, Nonce, Aad, OpeningKey};
+use ring::digest::{digest, Algorithm as DigestAlg, SHA256};
+use std::convert::TryInto;
+use base64;
+
 
 fn generate_token(
     id: Option<ObjectId>,
@@ -147,10 +157,12 @@ pub async fn user_list_handler(
     }
 }
 
+
 pub async fn create_user_handler(
     State(app_state): State<Arc<AppState>>,
     Json(body): Json<CreateUserSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    
     //加密
     let salt = SaltString::generate(&mut OsRng);
     let hashed_password = Argon2::default()
@@ -336,26 +348,26 @@ pub async fn update_user_handler(
     };
 
     //加密
-    let salt = SaltString::generate(&mut OsRng);
-    let hashed_password = Argon2::default()
-    .hash_password(&body.password.as_bytes(), &salt)
-    .map_err(|e| {
-        let error_response = serde_json::json!({
-            "status": "fail",
-            "message": format!("Error while hashing password: {}", e),
-        });
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
-    })
-    .map(|hash| hash.to_string())?;
+    // let salt = SaltString::generate(&mut OsRng);
+    // let hashed_password = Argon2::default()
+    // .hash_password(&body.password.as_bytes(), &salt)
+    // .map_err(|e| {
+    //     let error_response = serde_json::json!({
+    //         "status": "fail",
+    //         "message": format!("Error while hashing password: {}", e),
+    //     });
+    //     (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+    // })
+    // .map(|hash| hash.to_string())?;
 
-    let update_body = UpdateUserSchema{
-        password: hashed_password,
-        ..body
-    };
+    // let update_body = UpdateUserSchema{
+    //     password: hashed_password,
+    //     ..body
+    // };
 
     match app_state
         .db
-        .update_user(&username, &update_body)
+        .update_user(&username, &body)
         .await
         .map_err(MyError::from)
     {

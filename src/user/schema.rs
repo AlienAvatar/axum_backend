@@ -22,14 +22,17 @@ pub struct CreateUserSchema {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateUserSchema {
-    //暂时不能更改password
-    pub password: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nickname: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateUserPasswordSchema {
+    //暂时不能更改password
+    pub password: String,
+}
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VaildUserSchema {
     pub username: String,

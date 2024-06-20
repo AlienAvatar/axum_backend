@@ -74,7 +74,6 @@ impl DB {
             .build();
 
         let filter = doc! { 
-            "id": { "$regex": id, "$options": "i" }, 
             "nickname":{"$regex": nickname, "$options": "i"}, 
             "username":{"$regex": username, "$options": "i"},
             "is_delete": is_delete,
@@ -631,7 +630,7 @@ impl DB {
             article_id: body.article_id.to_owned(),
             content: body.content.to_owned(),
             author: body.author.to_owned(),
-            good_count: 0,
+            support_count: 0,
             is_delete:  Some(false),
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -742,7 +741,7 @@ impl DB {
             article_id: comment.article_id.to_owned(),
             author: comment.author.to_owned(),
             content: comment.content.to_owned(),
-            good_count: comment.good_count,
+            support_count: comment.support_count,
             is_delete: comment.is_delete,
             created_at: comment.created_at,
             updated_at: comment.updated_at,
@@ -807,7 +806,7 @@ impl DB {
             article_id: body.article_id.to_owned().unwrap(),
             author: body.author.to_owned().unwrap(),
             content: body.content.to_owned().unwrap(),
-            good_count: body.good_count.unwrap(),
+            support_count: body.support_count.unwrap(),
             is_delete: Some(false),
             updated_at: Utc::now(),
         };

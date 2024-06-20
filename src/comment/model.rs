@@ -11,7 +11,7 @@ pub struct CommentModel {
     pub article_id: String,
     pub author: String,
     pub content: String,
-    pub good_count: i32,
+    pub support_count: i32,
     pub is_delete: Option<bool>,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: DateTime<Utc>,
@@ -26,7 +26,7 @@ pub struct UpdateCommentModel {
     pub article_id: String,
     pub author: String,
     pub content: String,
-    pub good_count: i32,
+    pub support_count: i32,
     pub is_delete: Option<bool>,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub updated_at: DateTime<Utc>,

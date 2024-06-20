@@ -34,7 +34,7 @@ pub struct UpdateCommentSchema {
     pub content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
-    pub good_count: Option<i32>,
+    pub support_count: Option<i32>,
 }
 
 
