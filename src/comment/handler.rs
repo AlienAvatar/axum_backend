@@ -8,12 +8,9 @@ use axum::{
 use mongodb::bson::oid::ObjectId;
 
 use crate::{
-    error::MyError, token::{self, verify_jwt_token, TokenDetails}, 
-    comment::{
-         schema::{CreateCommentSchema, FilterOptions, UpdateCommentSchema},
-         response::{MessageResponse}
-    }, 
-    AppState
+    article, comment::{
+         response::MessageResponse, schema::{CreateCommentSchema, FilterOptions, UpdateCommentSchema}
+    }, error::MyError, token::{self, verify_jwt_token, TokenDetails}, AppState
 };
 use jsonwebtoken::{decode, encode, Algorithm, EncodingKey, Header};
 use chrono::{DateTime, Utc};
@@ -93,12 +90,15 @@ pub async fn comment_list_handler(
 
     let Query(opts) = opts.unwrap_or_default();
 
-    let limit = opts.limit.unwrap_or(10) as i64;
+    let limit = opts.limit.unwrap_or(6) as i64;
     let page = opts.page.unwrap_or(1) as i64;
+    let article_id = opts.article_id.unwrap_or("".to_string());
+    let author = opts.author.unwrap_or("".to_string());
+    let is_delete = opts.is_delete.unwrap_or(false);
 
     match app_state
         .db
-        .fetch_comments(limit, page)
+        .fetch_comments(limit, page, &article_id, &author, &is_delete)
         .await
         .map_err(MyError::from)
     {
@@ -140,7 +140,7 @@ pub async fn comment_list_by_article_id_handler(
 
     let Query(opts) = opts.unwrap_or_default();
 
-    let limit = opts.limit.unwrap_or(10) as i64;
+    let limit = opts.limit.unwrap_or(6) as i64;
     let page = opts.page.unwrap_or(1) as i64;
         
     match app_state

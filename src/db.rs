@@ -684,15 +684,21 @@ impl DB {
         })
     }
 
-    pub async fn fetch_comments(&self, limit: i64, page: i64) -> Result<CommentListResponse> {
+    pub async fn fetch_comments(&self, limit: i64, page: i64, article_id: &str, author: &str, is_delete: &bool) -> Result<CommentListResponse> {
         let find_options = FindOptions::builder()
             .limit(limit)
             .skip(u64::try_from((page - 1) * limit).unwrap())
             .build();
     
+        let filter = doc! { 
+            "article_id":{"$regex": article_id, "$options": "i"}, 
+            "author":{"$regex": author, "$options": "i"},
+            "is_delete": is_delete,
+        };
+
         let mut cursor = self
             .comment_collection
-            .find(None, find_options)
+            .find(filter, find_options)
             .await
             .map_err(MongoQueryError)?;
     

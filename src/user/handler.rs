@@ -12,7 +12,7 @@ use crate::{
     user::{
         model::TokenClaims, 
         response::{MessageResponse, TokenMessageResponse}, 
-        schema::{CreateUserSchema, FilterOptions, UpdateUserSchema, VaildUserSchema}
+        schema::{CreateUserSchema, FilterOptions, UpdateUserSchema, VaildUserSchema, UpdateUserPasswordSchema}
     }, AppState
 };
 use jsonwebtoken::{decode, encode, EncodingKey, Header};
@@ -142,10 +142,10 @@ pub async fn user_list_handler(
     let nickname = opts.nickname.unwrap_or("".to_string());
     let username = opts.username.unwrap_or("".to_string());
     let is_delete = opts.is_delete.unwrap_or(false);
-    println!("id: {}", id);")";
-    println!("nickname: {}", nickname);")";
-    println!("username: {}", username);")";
-    println!("is_delete: {}", is_delete);")";
+    // println!("id: {}", id);")";
+    // println!("nickname: {}", nickname);")";
+    // println!("username: {}", username);")";
+    // println!("is_delete: {}", is_delete);")";
     match app_state
         .db
         .fetch_users(limit, page, id.as_str(), nickname.as_str(), username.as_str(), &is_delete)
@@ -512,4 +512,91 @@ pub async fn logout_user_handler()
     .insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());
     response.headers_mut().extend(headers);
     Ok(response)
+}
+
+pub async fn update_password_by_username_handler(
+    Path(username): Path<String>,
+    headers: HeaderMap,
+    State(app_state): State<Arc<AppState>>,
+    Json(body): Json<UpdateUserPasswordSchema>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let token = headers.get("token");
+    if(token.is_none()){
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": "Token is empty"
+        });
+        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    }
+
+    let tokenstr = token.unwrap().to_str().unwrap();
+    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
+    {
+        Ok(token_details) => token_details,
+        Err(e) => {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format_args!("{:?}", e)
+            });
+            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+        }
+    };
+
+    let old_password = body.old_password;
+    match app_state.db.get_user("username", &username).await.map_err(MyError::from) {
+        Ok(res) => {
+            let password_key = res.data.user.password.clone();
+            let is_valid = match PasswordHash::new(&password_key) {
+                Ok(parsed_hash) => Argon2::default()
+                    .verify_password(old_password.as_bytes(), &parsed_hash)
+                    .map_or(false, |_| true),
+                Err(_) => false,
+            };
+
+            if !is_valid {
+                let error_response = serde_json::json!({
+                    "status": "fail",
+                    "message": "旧密码不正确"
+                });
+                return Err((StatusCode::BAD_REQUEST, Json(error_response)));
+            }
+            
+            // //加密
+            let salt = SaltString::generate(&mut OsRng);
+            let hashed_password = Argon2::default()
+            .hash_password(&body.new_password.as_bytes(), &salt)
+            .map_err(|e| {
+                let error_response = serde_json::json!({
+                    "status": "fail",
+                    "message": format!("Error while hashing password: {}", e),
+                });
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+            })
+            .map(|hash| hash.to_string())?;
+
+            let update_body = UpdateUserSchema{
+                password: Some(hashed_password),
+                email: None,
+                nickname: None,
+            };
+
+            
+            match app_state.db.update_user(&username, &update_body).await.map_err(MyError::from) {
+                Ok(res) => 
+                {
+                    let message = MessageResponse {
+                        code: 200,
+                        status: "success".to_string(),
+                        message: "update password success".to_string(),
+                    };
+                    return Ok((StatusCode::ACCEPTED, Json(message)))
+                }
+                Err(e) => return Err(e.into()),
+            }
+        },
+        Err(e) => Err(e.into()),
+    }
+
+
+   
 }

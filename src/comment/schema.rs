@@ -6,11 +6,9 @@ use mongodb::bson::{self};
 pub struct FilterOptions {
     pub page: Option<usize>,
     pub limit: Option<usize>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct ParamOptions {
-    pub id: String,
+    pub article_id: Option<String>,
+    pub author: Option<String>,
+    pub is_delete: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -17,7 +17,7 @@ use crate::{
     user::handler::{
         create_user_handler, delete_user_by_id_handler, get_user_by_username_handler,
         login_user_handler, logout_user_handler, update_user_handler, user_list_handler, 
-        get_user_by_id_handler,delete_user_by_ids_handler
+        get_user_by_id_handler,delete_user_by_ids_handler, update_password_by_username_handler
     },
     comment::handler::{
         create_comment_handler, comment_list_handler, comment_list_by_article_id_handler, get_comment_by_id_handler,
@@ -47,6 +47,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/user/update/:username", post(update_user_handler))
         .route("/api/user/delete/:id", post(delete_user_by_id_handler))
         .route("/api/user/delete_many/", post(delete_user_by_ids_handler))
+        .route("/api/user/update_pwd/:username", post(update_password_by_username_handler))
         //article
         .route("/api/article/list/", get(article_list_handler))
         .route("/api/article/create/", post(create_article_handler))

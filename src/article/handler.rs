@@ -52,10 +52,7 @@ pub async fn article_list_handler(
     let title = opts.title.unwrap_or("".to_string());
     let author = opts.author.unwrap_or("".to_string());
     let is_delete = opts.is_delete.unwrap_or(false);
-    println!("id: {}", id);")";
-    println!("title: {}", title);")";
-    println!("author: {}", author);")";
-    println!("is_delete: {}", is_delete);")";
+
     match app_state
         .db
         .fetch_articles(limit, page,id.as_str(), title.as_str(), author.as_str(), &is_delete)
