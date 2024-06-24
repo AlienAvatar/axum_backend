@@ -31,18 +31,18 @@ async fn visit_public_link(url: &str) {
         let format_p = format!("<p>{}</p>", str);
         println!("{}", format_p);
 
-        let crawler_body = CreateArticleSchema{
-            ..body
-        };
+        // let crawler_body = CreateArticleSchema{
+        //     ..body
+        // };
 
-        match app_state
-            .db
-            .create_article(&crawler_body)
-            .await.map_err(MyError::from) 
-        {
-            Ok(res) => Ok((StatusCode::CREATED, Json(res))),
-            Err(e) => Err(e.into()),
-        }
+        // match app_state
+        //     .db
+        //     .create_article(&crawler_body)
+        //     .await.map_err(MyError::from) 
+        // {
+        //     Ok(res) => Ok((StatusCode::CREATED, Json(res))),
+        //     Err(e) => Err(e.into()),
+        // }
 
     }
 }
