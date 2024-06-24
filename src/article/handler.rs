@@ -13,6 +13,7 @@ use crate::{
     article::schema::{FilterOptions, CreateArticleSchema, UpdateArticleSchema}, 
     AppState
 };
+use scraper::{Html, Selector};
 
 pub async fn article_list_handler(
     opts: Option<Query<FilterOptions>>,
@@ -294,3 +295,54 @@ pub async fn delete_article_by_ids_handler(
     });
     return Ok((StatusCode::ACCEPTED, Json(response)))
 }
+
+pub async fn crawler_handler() -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    println!("crawler_handler");
+    let url = "http://www.gufowang.org/";
+    //let url = "https://github.com/trending/rust";
+
+    match reqwest::get(url).await {
+        Ok(resp) => {
+            println!("Response Status: {}", resp.status());
+            // 处理响应数据
+            parse_html(resp.text().await.unwrap().as_str()).await;
+        }
+        Err(err) => println!("Error: {}", err),
+    }
+
+    // let crawler_body = CreateArticleSchema{
+    //     ..body
+    // };
+
+    // match app_state
+    //     .db
+    //     .create_article(&crawler_body)
+    //     .await.map_err(MyError::from) 
+    // {
+    //     Ok(res) => Ok((StatusCode::CREATED, Json(res))),
+    //     Err(e) => Err(e.into()),
+    // }
+
+    let success_response = serde_json::json!({
+        "status": "success",
+        "message": "crawler success"
+    });
+    return Ok((StatusCode::ACCEPTED, Json(success_response)));
+}
+
+async fn parse_html(html: &str) {
+    let document = Html::parse_document(html);
+
+    // 使用 CSS 选择器定位目标元素
+    let link_selector = Selector::parse("li.list-cat-title > a").unwrap();
+    let link_elements = document.select(&link_selector);
+
+    for link in link_elements {
+        if let Some(href) = link.value().attr("href") {
+        }
+
+        let text = link.text().collect::<Vec<_>>().join(" ");
+        println!("Text: {}", text);
+    }
+}
+

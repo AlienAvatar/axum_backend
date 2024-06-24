@@ -41,3 +41,7 @@ pub struct DeleteArticleSchema {
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub updated_at: DateTime<Utc>,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CrawelSchema {
+}
