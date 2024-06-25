@@ -5,7 +5,6 @@ use axum::{
     response::{IntoResponse},
     Json,
 };
-use mongodb::bson::oid::ObjectId;
 use serde_json::{json, Map, Value};
 use crate::{
     error::MyError, token::{self, verify_jwt_token, TokenDetails}, 
@@ -296,53 +295,120 @@ pub async fn delete_article_by_ids_handler(
     return Ok((StatusCode::ACCEPTED, Json(response)))
 }
 
-pub async fn crawler_handler() -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    println!("crawler_handler");
-    let url = "http://www.gufowang.org/";
-    //let url = "https://github.com/trending/rust";
+pub async fn crawler_handler(
+    State(app_state): State<Arc<AppState>>
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    // println!("crawler_handler");
+    let mut count = 0;
+    let response = reqwest::get("http://www.gufowang.org/").await.unwrap();
+    let html = response.text().await.unwrap();
+ 
+    // // // 解析 HTML 文档
+    let document = Html::parse_document(&html);
+    // // // 访问公告中的li元素
+    // let result = public_handler(document, app_state.clone()).await; // 捕获返回值
+    // // 使用 CSS 选择器定位目标元素
+    let link_selector = Selector::parse("li.list-cat-title > a").unwrap();
+    let link_elements = document.select(&link_selector);
 
-    match reqwest::get(url).await {
-        Ok(resp) => {
-            println!("Response Status: {}", resp.status());
-            // 处理响应数据
-            parse_html(resp.text().await.unwrap().as_str()).await;
+    //  // 遍历找到的元素,提取 href 属性值并访问
+    for link in link_elements {
+        let title = link.text().collect::<Vec<_>>().join(" ");
+    //    // 获取 href 属性值
+        if let Some(href) = link.value().attr("href") {
+            println!("Visiting: {}", href);
+
+            
+            // 访问链接并获取响应
+            let response = reqwest::get(href).await.unwrap();
+            let html = response.text().await.unwrap();
+
+    //         let document = Html::parse_document(&html);
+    //         let single_content_selector = Selector::parse(".single-content >p").unwrap();
+    //         let single_content_elements = document.select(&single_content_selector);
+
+    //         for single_content_element in single_content_elements {
+    //             single_content_element.value();
+    //             let str = single_content_element.inner_html();
+    //             let format_p = format!("<p>{}</p>", str);
+    //             println!("{}", format_p);
+
+    //             let crawler_body = CreateArticleSchema{
+    //                 title: title.clone(),
+    //                 content: format_p,
+    //                 author: "管理员".to_string(),
+    //                 category: "公告".to_string(),
+    //             };
+
+    //             match app_state
+    //                 .db
+    //                 .create_article(&crawler_body)
+    //                 .await.map_err(MyError::from) 
+    //             {
+    //                 Ok(res) => {
+    //                     count += 1;
+    //                 },
+    //                 Err(e) => {
+    //                     return Err(e.into())
+    //                 },
+    //             }
+    //         }
         }
-        Err(err) => println!("Error: {}", err),
     }
-
-    // let crawler_body = CreateArticleSchema{
-    //     ..body
-    // };
-
-    // match app_state
-    //     .db
-    //     .create_article(&crawler_body)
-    //     .await.map_err(MyError::from) 
-    // {
-    //     Ok(res) => Ok((StatusCode::CREATED, Json(res))),
-    //     Err(e) => Err(e.into()),
-    // }
 
     let success_response = serde_json::json!({
         "status": "success",
+        "count" : count,
         "message": "crawler success"
     });
     return Ok((StatusCode::ACCEPTED, Json(success_response)));
 }
 
-async fn parse_html(html: &str) {
-    let document = Html::parse_document(html);
-
+pub async fn public_handler(document:Html,  app_state: Arc<AppState>){
     // 使用 CSS 选择器定位目标元素
     let link_selector = Selector::parse("li.list-cat-title > a").unwrap();
     let link_elements = document.select(&link_selector);
-
+ 
+     // 遍历找到的元素,提取 href 属性值并访问
     for link in link_elements {
-        if let Some(href) = link.value().attr("href") {
-        }
+       let title = link.text().collect::<Vec<_>>().join(" ");
+       // 获取 href 属性值
+       if let Some(href) = link.value().attr("href") {
+           println!("Visiting: {}", href);
+           visit_public_link(href, title, app_state.clone()).await;
+       }
+    }
+}
 
-        let text = link.text().collect::<Vec<_>>().join(" ");
-        println!("Text: {}", text);
+async fn visit_public_link(url: &str, title: String, app_state: Arc<AppState>) {
+    // 访问链接并获取响应
+    let response = reqwest::get(url).await.unwrap();
+    let html = response.text().await.unwrap();
+
+    let document = Html::parse_document(&html);
+    let single_content_selector = Selector::parse(".single-content >p").unwrap();
+    let single_content_elements = document.select(&single_content_selector);
+
+    for single_content_element in single_content_elements {
+        single_content_element.value();
+        let str = single_content_element.inner_html();
+        let format_p = format!("<p>{}</p>", str);
+        println!("{}", format_p);
+
+        let crawler_body = CreateArticleSchema{
+            title: title.clone(),
+            content: format_p,
+            author: "管理员".to_string(),
+            category: "公告".to_string(),
+        };
+
+        // match app_state
+        //     .db
+        //     .create_article(&crawler_body)
+        //     .await.map_err(MyError::from) 
+        // {
+
+        // }
     }
 }
 

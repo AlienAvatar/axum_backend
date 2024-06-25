@@ -44,6 +44,7 @@ impl DB {
         let comment_collection_name =
             std::env::var("MONGODB_COMMENT_COLLECTION").expect("MONGODB_COMMENT_COLLECTION must be set.");
 
+        
         let mut client_options = ClientOptions::parse(mongodb_uri).await?;
         client_options.app_name = Some(database_name.to_string());
 
@@ -499,15 +500,16 @@ impl DB {
         };
     
         //把articlename作为构建唯一索引
-        let options = IndexOptions::builder().unique(false).build();
-        let index = IndexModel::builder()
-            .keys(doc! { &article_moel.id: 1 })
-            .options(options)
-            .build();
-        match self.article_collection.create_index(index, None).await {
-            Ok(_) => {}
-            Err(e) => return Err(MongoQueryError(e)),
-        };
+        // let options = IndexOptions::builder().unique(true).build();
+        // let index = IndexModel::builder()
+        //     .keys(doc! { &article_moel.id: 1})
+        //     .options(options)
+        //     .build();
+        
+        // match self.article_collection.create_index(index, None).await {
+        //     Ok(_) => {}
+        //     Err(e) => return Err(MongoQueryError(e)),
+        // };
     
         //插入数据库
         let insert_result = match self.article_collection.insert_one(&article_moel, None).await {
@@ -530,7 +532,7 @@ impl DB {
         //检测是否有重复id
         let article_doc = match self
             .article_collection
-            .find_one(doc! {"_id": new_id}, None)
+            .find_one(doc! {"_id": 1}, None)
             .await
         {
             Ok(Some(doc)) => doc,
