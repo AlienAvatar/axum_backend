@@ -10,6 +10,7 @@ use crate::{
     error::MyError, token::{self, verify_jwt_token, TokenDetails}, 
     user::{model::TokenClaims, response::{MessageResponse, TokenMessageResponse}}, 
     article::schema::{FilterOptions, CreateArticleSchema, UpdateArticleSchema}, 
+    article::response::ArticleListResponse,
     AppState
 };
 use scraper::{Html, Selector};
@@ -51,17 +52,213 @@ pub async fn article_list_handler(
     let id = opts.id.unwrap_or("".to_string());
     let title = opts.title.unwrap_or("".to_string());
     let author = opts.author.unwrap_or("".to_string());
+    let tags = opts.tags.unwrap_or("".to_string());
     let is_delete = opts.is_delete.unwrap_or(false);
 
     match app_state
         .db
-        .fetch_articles(limit, page,id.as_str(), title.as_str(), author.as_str(), &is_delete)
+        .fetch_articles(limit, page,id.as_str(), title.as_str(), author.as_str(), tags.as_str(), &is_delete)
         .await
         .map_err(MyError::from)
     {
         Ok(res) => Ok(Json(res)),
         Err(e) => Err(e.into()),
     }
+}
+
+
+async fn fetch_articles_by_category(
+    app_state: Arc<AppState>,
+    limit: i64,
+    page: i64,
+    category: &str,
+    is_delete: bool,
+    vec: &mut Vec<Value>,
+    // count: &mut usize,
+) {
+    let articles = app_state
+        .db
+        .fetch_articles(limit, page, "", "", "", category, &is_delete)
+        .await
+        .map_err(MyError::from);
+
+    let res_list = serde_json::json!({
+        "category": category,
+        "data": &articles.unwrap(),
+        
+    });
+    // let articles_value = articles.unwrap();
+    // *count += articles_value.results;
+    vec.push(res_list);
+}
+
+pub async fn article_home_list_handler(
+    opts: Option<Query<FilterOptions>>,
+    State(app_state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let Query(opts) = opts.unwrap_or_default();
+
+    let mut count = 0;
+    let limit = opts.limit.unwrap_or(10) as i64;
+    let page = opts.page.unwrap_or(1) as i64;
+    let is_delete = false;
+    
+    let mut res_vec: Vec<Value> = vec![];
+    let mut category = "古佛降世";
+
+    // match app_state
+    //     .db
+    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
+    //     .await
+    //     .map_err(MyError::from)
+    // {
+    //     Ok(res) =>{
+    //         let res_list = serde_json::json!({
+    //             "category": category,
+    //             "data" : res.articles
+    //         });
+    //         res_vec.push(res_list);
+    //     }
+    //     Err(e) => {
+    //         return Err(e.into())
+    //     },
+    // }
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "羌佛说法";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "公告";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    // match app_state
+    //     .db
+    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
+    //     .await
+    // .map_err(MyError::from)
+    // {
+    //     Ok(res) =>{
+    //         res_vec.push(res);
+    //     }
+    //     Err(e) => {
+    //         return Err(e.into())
+    //     },
+    // }
+
+    // category = "认证恭祝";
+    // match app_state
+    //     .db
+    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
+    //     .await
+    //     .map_err(MyError::from)
+    // {
+    //     Ok(res) =>{
+    //         res_vec.push(res);
+    //     }
+    //     Err(e) => {
+    //         return Err(e.into())
+    //     },
+    // }
+
+    // category = "羌佛圣量";
+    // match app_state
+    //     .db
+    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
+    //     .await
+    //     .map_err(MyError::from)
+    // {
+    //     Ok(res) =>{
+    //         res_vec.push(res);
+    //     }
+    //     Err(e) => {
+    //         return Err(e.into())
+    //     },
+    // }
+
+    // category = "羌佛圣迹";
+    // match app_state
+    //     .db
+    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
+    //     .await
+    //     .map_err(MyError::from)
+    // {
+    //     Ok(res) =>{
+    //         res_vec.push(res);
+    //     }
+    //     Err(e) => {
+    //         return Err(e.into())
+    //     },
+    // }
+
+    // category = "圆满佛格";
+    // match app_state
+    //     .db
+    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
+    //     .await
+    //     .map_err(MyError::from)
+    // {
+    //     Ok(res) =>{
+    //         res_vec.push(res);
+    //     }
+    //     Err(e) => {
+    //         return Err(e.into())
+    //     },
+    // }
+
+    // category = "妙谙五明";
+    // match app_state
+    //     .db
+    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
+    //     .await
+    //     .map_err(MyError::from)
+    // {
+    //     Ok(res) =>{
+    //         res_vec.push(res);
+    //     }
+    //     Err(e) => {
+    //         return Err(e.into())
+    //     },
+    // }
+
+    // category = "渡生成就";
+    // match app_state
+    //     .db
+    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
+    //     .await
+    //     .map_err(MyError::from)
+    // {
+    //     Ok(res) =>{
+    //         res_vec.push(res);
+    //     }
+    //     Err(e) => {
+    //         return Err(e.into())
+    //     },
+    // }
+
+    let res_response = serde_json::json!({
+        "status": "success",
+        "code": 200,
+        "data" : res_vec
+    });
+    Ok(Json(res_response))
 }
 
 pub async fn create_article_handler(
