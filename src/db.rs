@@ -106,7 +106,7 @@ impl DB {
             id: id,
             username: body.username.to_owned(),
             nickname: body.nickname.to_owned(),
-            avatar: body.avatar.to_owned(),
+            avatar: "avatar.png".to_owned(),
             password: hashed_password,
             email: body.email.to_owned(),
             is_delete:  Some(false),

@@ -162,27 +162,43 @@ pub async fn create_user_handler(
     State(app_state): State<Arc<AppState>>,
     Json(body): Json<CreateUserSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    
-    //加密
-    let salt = SaltString::generate(&mut OsRng);
-    let hashed_password = Argon2::default()
-    .hash_password(body.password.as_bytes(), &salt)
-    .map_err(|e| {
-        let error_response = serde_json::json!({
-            "status": "fail",
-            "message": format!("Error while hashing password: {}", e),
-        });
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
-    })
-    .map(|hash| hash.to_string())?;
+    let username = body.username.clone();
 
-    match app_state
-        .db
-        .create_user(&body, hashed_password)
-        .await.map_err(MyError::from) 
-    {
-        Ok(res) => Ok((StatusCode::CREATED, Json(res))),
-        Err(e) => Err(e.into()),
+    match app_state.db.get_user("username",&username).await.map_err(MyError::from) {
+        Ok(res) => {
+            if(username == res.data.user.username){
+                let error_response = serde_json::json!({
+                    "status": "fail",
+                    "message": format!("the same username: {}", username),
+                });
+                return Err((StatusCode::OK, Json(error_response)));
+            }else{
+                //加密
+                let salt = SaltString::generate(&mut OsRng);
+                let hashed_password = Argon2::default()
+                .hash_password(body.password.as_bytes(), &salt)
+                .map_err(|e| {
+                    let error_response = serde_json::json!({
+                        "status": "fail",
+                        "message": format!("Error while hashing password: {}", e),
+                    });
+                    (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+                })
+                .map(|hash| hash.to_string())?;
+
+                match app_state
+                    .db
+                    .create_user(&body, hashed_password)
+                    .await.map_err(MyError::from) 
+                {
+                    Ok(res) => Ok((StatusCode::CREATED, Json(res))),
+                    Err(e) => Err(e.into()),
+                }
+            }
+        }
+        Err(e) =>{
+            return Err(e.into())
+        }
     }
 }
 

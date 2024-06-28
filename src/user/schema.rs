@@ -16,7 +16,6 @@ pub struct CreateUserSchema {
     pub username: String,
     pub nickname: String,
     pub password: String,
-    pub avatar: String,
     pub email: String,
 }
 
