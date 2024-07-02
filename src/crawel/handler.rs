@@ -24,85 +24,9 @@ pub async fn public_handler(document:Html, app_state: Arc<AppState>){
         // 获取 href 属性值
         if let Some(href) = link.value().attr("href") {
             println!("Visiting: {}", href);
-            visit_link(href, title, app_state.clone(),"公告").await;
+            visit_link(href, title.as_str(), "", app_state.clone(),"公告").await;
         }
     }
-}
-
-pub async fn buddha_handler(document:Html, app_state: Arc<AppState>){
-    // 使用 CSS 选择器定位目标元素
-    let link_selector = Selector::parse(".entry-title > a").unwrap();
-    let link_elements = document.select(&link_selector);
-
-     // 遍历找到的元素,提取 href 属性值并访问
-    for link in link_elements {
-       let title = link.text().collect::<Vec<_>>().join(" ");
-       
-       // 获取 href 属性值
-       if let Some(href) = link.value().attr("href") {
-           println!("Visiting: {}", href);
-           visit_link(href, title, app_state.clone(), "古佛降世").await;
-       }
-   }
-}
-
-pub async fn recognition_handler(document:Html, app_state: Arc<AppState>){
-    // 使用 CSS 选择器定位目标元素
-    let link_selector = Selector::parse(".entry-title > a").unwrap();
-    let link_elements = document.select(&link_selector);
-
-    // 遍历找到的元素,提取 href 属性值并访问
-    for link in link_elements {
-       let title = link.text().collect::<Vec<_>>().join(" ");
-       
-       // 获取 href 属性值
-       if let Some(href) = link.value().attr("href") {
-           println!("Visiting: {}", href);
-           visit_link(href, title, app_state.clone(), "认证恭贺").await;
-       }
-    }
-
-    //当前的页数靠手动控制
-    let page_selector = Selector::parse(".page-numbers").unwrap();
-    let page_numbers: Vec<String> = document
-        .select(&page_selector)
-        .map(|element: scraper::ElementRef| element.text().collect())
-        .collect();
-    let page_total = page_numbers.len() - 1;
-    let page_elements = document.select(&page_selector).take(page_total);
-
-    for page in page_elements {
-        // 获取 page href 属性值
-        if let Some(page_href) = page.value().attr("href") {
-            println!("Visiting: {}", page_href);
-            // 访问链接并获取响应
-            let page_response = reqwest::get(page_href).await.unwrap();
-            let page_html = page_response.text().await.unwrap();
-
-            let page_document = Html::parse_document(&page_html);
-            let page_link_selector = Selector::parse(".entry-title > a").unwrap();
-            let page_link_elements = page_document.select(&page_link_selector);
-
-            for link in page_link_elements {
-                let title = link.text().collect::<Vec<_>>().join(" ");
-                
-                // 获取 href 属性值
-                if let Some(href) = link.value().attr("href") {
-                    println!("Visiting: {}", href);
-                    visit_link(href, title, app_state.clone(), "认证恭贺").await;
-                }
-            }
-        }
-    }
-
-    // 当前的页数靠手动控制
-    // let mut page_numbers: Vec<String> = document
-    //     .select(&page_selector)
-    //     .take(3)
-    //     .map(|element| element.text().collect())
-    //     .collect();
-
-    // println!("{:?}", page_numbers);
 }
 
 //访问公告
@@ -132,6 +56,7 @@ async fn visit_public_link(url: &str, title: String, app_state: Arc<AppState>)
         content: content,
         author: "管理员".to_string(),
         category: "公告".to_string(),
+        cover_img: Some("".to_string()),
     };
     
     match app_state
@@ -150,7 +75,7 @@ async fn visit_public_link(url: &str, title: String, app_state: Arc<AppState>)
     }
 }
 
-async fn visit_link(url: &str, title: String, app_state: Arc<AppState>, category_str: &str){
+async fn visit_link(url: &str, title: &str, cover_img: &str, app_state: Arc<AppState>, category_str: &str){
     // 访问链接并获取响应
     let response = reqwest::get(url).await.unwrap();
     let html = response.text().await.unwrap();
@@ -170,11 +95,14 @@ async fn visit_link(url: &str, title: String, app_state: Arc<AppState>, category
     }
     println!("{}", content);
 
+    //let single_content_selector = Selector::parse(".highslide-image").unwrap();
+
     let crawler_body = CreateArticleSchema{
-        title: title.clone(),
+        title: title.to_string().clone(),
         content: content,
         author: "管理员".to_string(),
         category: category_str.to_string(),
+        cover_img: Some(cover_img.to_string()),
     };
     
     match app_state
@@ -193,139 +121,65 @@ async fn visit_link(url: &str, title: String, app_state: Arc<AppState>, category
     }
 }
 
-pub async fn buddha_dharma_handler(document:Html, app_state: Arc<AppState>){
-    // 使用 CSS 选择器定位目标元素
-    let link_selector = Selector::parse(".entry-title > a").unwrap();
-    let link_elements = document.select(&link_selector);
-
-     // 遍历找到的元素,提取 href 属性值并访问
-    for link in link_elements {
-       let title = link.text().collect::<Vec<_>>().join(" ");
-       
-       // 获取 href 属性值
-       if let Some(href) = link.value().attr("href") {
-           println!("Visiting: {}", href);
-           visit_link(href, title, app_state.clone(), "羌佛说法").await;
-       }
-   }
-}
-
-pub async fn holy_realization_handler(document:Html, app_state: Arc<AppState>){
-    // 使用 CSS 选择器定位目标元素
-    let link_selector = Selector::parse(".entry-title > a").unwrap();
-    let link_elements = document.select(&link_selector);
-
-    // 遍历找到的元素,提取 href 属性值并访问
-    for link in link_elements {
-       let title = link.text().collect::<Vec<_>>().join(" ");
-       
-       // 获取 href 属性值
-       if let Some(href) = link.value().attr("href") {
-           println!("Visiting: {}", href);
-           visit_link(href, title, app_state.clone(), "羌佛圣量").await;
-       }
-    }
-
-    //当前的页数靠手动控制
-    let page_selector = Selector::parse(".page-numbers").unwrap();
-    let page_numbers: Vec<String> = document
-        .select(&page_selector)
-        .map(|element: scraper::ElementRef| element.text().collect())
-        .collect();
-    let page_total = page_numbers.len() - 1;
-    let page_elements = document.select(&page_selector).take(page_total);
-
-    for page in page_elements {
-        // 获取 page href 属性值
-        if let Some(page_href) = page.value().attr("href") {
-            println!("Visiting: {}", page_href);
-            // 访问链接并获取响应
-            let page_response = reqwest::get(page_href).await.unwrap();
-            let page_html = page_response.text().await.unwrap();
-
-            let page_document = Html::parse_document(&page_html);
-            let page_link_selector = Selector::parse(".entry-title > a").unwrap();
-            let page_link_elements = page_document.select(&page_link_selector);
-
-            for link in page_link_elements {
-                let title = link.text().collect::<Vec<_>>().join(" ");
-                
-                // 获取 href 属性值
-                if let Some(href) = link.value().attr("href") {
-                    println!("Visiting: {}", href);
-                    visit_link(href, title, app_state.clone(), "羌佛圣量").await;
-                }
-            }
-        }
-    }
-}
-
-pub async fn holy_occurrences_handler(document:Html, app_state: Arc<AppState>){
-    // 使用 CSS 选择器定位目标元素
-    let link_selector = Selector::parse(".entry-title > a").unwrap();
-    let link_elements = document.select(&link_selector);
-
-    // 遍历找到的元素,提取 href 属性值并访问
-    for link in link_elements {
-       let title = link.text().collect::<Vec<_>>().join(" ");
-       
-       // 获取 href 属性值
-       if let Some(href) = link.value().attr("href") {
-           println!("Visiting: {}", href);
-           visit_link(href, title, app_state.clone(), "羌佛圣迹").await;
-       }
-    }
-
-    let page_selector = Selector::parse(".page-numbers").unwrap();
-    
-    let page_numbers: Vec<String> = document
-    .select(&page_selector)
-    .map(|element: scraper::ElementRef| element.text().collect())
-    .collect();
-    let page_total = page_numbers.len() - 1;
-    println!("page_numbers {:?}", page_numbers.len()-1);
-    let page_elements = document.select(&page_selector).take(page_total);
-
-    for page in page_elements {
-        // 获取 page href 属性值
-        if let Some(page_href) = page.value().attr("href") {
-            println!("Visiting: {}", page_href);
-            // 访问链接并获取响应
-            let page_response = reqwest::get(page_href).await.unwrap();
-            let page_html = page_response.text().await.unwrap();
-
-            let page_document = Html::parse_document(&page_html);
-            let page_link_selector = Selector::parse(".entry-title > a").unwrap();
-            let page_link_elements = page_document.select(&page_link_selector);
-
-            for link in page_link_elements {
-                let title = link.text().collect::<Vec<_>>().join(" ");
-                
-                // 获取 href 属性值
-                if let Some(href) = link.value().attr("href") {
-                    println!("Visiting: {}", href);
-                    visit_link(href, title, app_state.clone(), "羌佛圣迹").await;
-                }
-            }
-        }
-    }
-}
-
 pub async fn public_crawl_handler(document:Html, app_state: Arc<AppState>, category: &str){
     // 使用 CSS 选择器定位目标元素
-    let link_selector = Selector::parse(".entry-title > a").unwrap();
-    let link_elements = document.select(&link_selector);
+    // let link_selector = Selector::parse(".entry-title > a").unwrap();
+    // let link_elements = document.select(&link_selector);
 
-    // 遍历找到的元素,提取 href 属性值并访问
-    for link in link_elements {
-       let title = link.text().collect::<Vec<_>>().join(" ");
-       
-       // 获取 href 属性值
-       if let Some(href) = link.value().attr("href") {
-           println!("Visiting: {}", href);
-           visit_link(href, title, app_state.clone(), category).await;
-       }
+    // let img_selector = Selector::parse(".type-post figure > a > img").unwrap();
+    // let img_elements = document.select(&img_selector);    
+    
+    let selector = Selector::parse(".type-post figure > a").unwrap();
+    let elements = document.select(&selector);    
+
+    for ele in elements {
+        let mut title = "";
+        let mut cover_img = "";
+        let mut url =  "";
+
+        let img_node = ele.first_child().unwrap();
+        let img_ele = img_node.value().as_element();
+
+        if let Some(img_src) = img_ele.unwrap().attr("src"){
+            cover_img = img_src;
+        }
+
+        if let Some(img_alt) = img_ele.unwrap().attr("alt"){
+            title = img_alt;
+        }
+
+        // println!("img_src{} img_alt {}", img_src.unwrap(), img_alt.unwrap());
+        if let Some(href) = ele.value().attr("href") {
+            url = href;
+        }
+        
+        visit_link(url, title, cover_img, app_state.clone(), category).await;
     }
+
+    //println!("{}", &img_elements.count());
+    // for img in img_elements {
+    //     if let Some(src) = img.value().attr("src"){
+    //         println!("img_src{}", src);
+    //     }
+       
+        
+    //     // if let Some(img_src) = img.value().attr("src") {
+    //     // }
+    // }
+    
+    // // 遍历找到的元素,提取 href 属性值并访问
+    // for link in link_elements {
+    //     let title = link.text().collect::<Vec<_>>().join(" ");
+    //     println!("title{}", title);
+
+        
+       
+    //    // 获取 href 属性值
+    // //    if let Some(href) = link.value().attr("href") {
+    // //        println!("Visiting: {}", href);
+    // //        visit_link(href, title, app_state.clone(), category).await;
+    // //    }
+    // }
 
     let page_selector = Selector::parse(".page-numbers").unwrap();
     let page_numbers: Vec<String> = document
@@ -348,18 +202,60 @@ pub async fn public_crawl_handler(document:Html, app_state: Arc<AppState>, categ
             let page_html = page_response.text().await.unwrap();
 
             let page_document = Html::parse_document(&page_html);
-            let page_link_selector = Selector::parse(".entry-title > a").unwrap();
-            let page_link_elements = page_document.select(&page_link_selector);
+            // let page_link_selector = Selector::parse(".entry-title > a").unwrap();
+            // let page_link_elements = page_document.select(&page_link_selector);
 
-            for link in page_link_elements {
-                let title = link.text().collect::<Vec<_>>().join(" ");
+            let selector = Selector::parse(".type-post figure > a").unwrap();
+            let elements = page_document.select(&selector);    
+            
+            for ele in elements {
+                // let title = link.text().collect::<Vec<_>>().join(" ");
                 
-                // 获取 href 属性值
-                if let Some(href) = link.value().attr("href") {
-                    println!("Visiting: {}", href);
-                    visit_link(href, title, app_state.clone(), category).await;
+                // // 获取 href 属性值
+                // if let Some(href) = link.value().attr("href") {
+                //     println!("Visiting: {}", href);
+                //     visit_link(href, title, app_state.clone(), category).await;
+                // }
+                let mut title = "";
+                let mut cover_img = "";
+                let mut url =  "";
+        
+                let img_node = ele.first_child().unwrap();
+                let img_ele = img_node.value().as_element();
+        
+                if let Some(img_src) = img_ele.unwrap().attr("src"){
+                    cover_img = img_src;
                 }
+        
+                if let Some(img_alt) = img_ele.unwrap().attr("alt"){
+                    title = img_alt;
+                }
+        
+                // println!("img_src{} img_alt {}", img_src.unwrap(), img_alt.unwrap());
+                if let Some(href) = ele.value().attr("href") {
+                    url = href;
+                    println!("href{}", href);
+                }
+                
+                visit_link(url, title, cover_img, app_state.clone(), category).await;
             }
+        }
+    }
+}
+
+pub async fn shared_handler(document:Html, app_state: Arc<AppState>){
+     // 使用 CSS 选择器定位目标元素
+     let link_selector = Selector::parse(".cat-g3 .entry-title > a").unwrap();
+     let link_elements = document.select(&link_selector);
+
+      // 遍历找到的元素,提取 href 属性值并访问
+     for link in link_elements {
+        let title = link.text().collect::<Vec<_>>().join(" ");
+        
+        // 获取 href 属性值
+        if let Some(href) = link.value().attr("href") {
+            println!("Visiting: {}", href);
+            visit_link(href, title.as_str(), "", app_state.clone(),"受用分享").await;
         }
     }
 }

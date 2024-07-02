@@ -21,6 +21,7 @@ pub struct ArticleResponse {
     pub support_count: i32,
     pub views_count: i32,
     pub category: String,
+    pub cover_img: String,
     pub is_delete: Option<bool>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

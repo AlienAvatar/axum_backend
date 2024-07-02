@@ -14,6 +14,7 @@ pub struct ArticleModel {
     pub support_count: i32,
     pub views_count: i32,
     pub category: String,
+    pub cover_img: String,
     pub is_delete: Option<bool>,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: DateTime<Utc>,

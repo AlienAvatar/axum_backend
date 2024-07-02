@@ -149,6 +149,96 @@ pub async fn article_home_list_handler(
         is_delete,
         &mut res_vec
     ).await;
+    category = "认证恭祝";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "羌佛圣量";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "羌佛圣迹";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "圆满佛格";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "妙谙五明";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "渡生成就";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "正法新闻";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "摧邪显正";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "受用分享";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "佛书法著";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
     // match app_state
     //     .db
     //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
@@ -597,6 +687,7 @@ async fn visit_public_link(url: &str, title: String, app_state: Arc<AppState>) {
             content: format_p,
             author: "管理员".to_string(),
             category: "公告".to_string(),
+            cover_img: Some("".to_string()),
         };
 
         // match app_state

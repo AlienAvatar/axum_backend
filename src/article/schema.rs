@@ -24,6 +24,7 @@ pub struct CreateArticleSchema {
     pub author: String,
     pub content: String,
     pub category: String,
+    pub cover_img: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
