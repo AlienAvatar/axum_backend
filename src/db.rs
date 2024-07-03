@@ -467,7 +467,49 @@ impl DB {
         };
         let mut cursor = self
             .article_collection
-            .find(filter, find_options)
+            .find(filter.clone(), None)
+            .await
+            .map_err(MongoQueryError)?;
+
+        // let mut page_cursor = self
+        //     .article_collection
+        //     .find(filter.clone(), None)
+        //     .await
+        //     .map_err(MongoQueryError)?;
+
+        let mut json_result: Vec<ArticleResponse> = Vec::new();
+
+        while let Some(doc) = cursor.next().await {
+            json_result.push(self.doc_to_article(&doc.unwrap())?);
+        }
+
+        // while let Some(doc) = page_cursor.next().await {
+        //     json_result.push(self.doc_to_article(&doc.unwrap())?);
+        // }
+
+        Ok(ArticleListResponse {
+            status: "success",
+            count: json_result.len(),
+            articles: json_result,
+        })
+    }
+
+    pub async fn fetch_articles_page(&self, limit: i64, page: i64, id: &str, title: &str, author: &str, category: &str, is_delete: &bool) -> Result<ArticleListResponse> {
+        let find_options = FindOptions::builder()
+            .limit(limit)
+            .skip(u64::try_from((page - 1) * limit).unwrap())
+            .build();
+
+        let filter = doc! { 
+            "id": { "$regex": id, "$options": "i" }, 
+            "title":{"$regex": title, "$options": "i"}, 
+            "author":{"$regex": author, "$options": "i"},
+            "category": { "$regex": category },
+            "is_delete": is_delete,
+        };
+        let mut cursor = self
+            .article_collection
+            .find(filter.clone(), find_options)
             .await
             .map_err(MongoQueryError)?;
 
@@ -479,7 +521,7 @@ impl DB {
 
         Ok(ArticleListResponse {
             status: "success",
-            results: json_result.len(),
+            count: json_result.len(),
             articles: json_result,
         })
     }
@@ -487,7 +529,7 @@ impl DB {
     pub async fn create_article(&self, body: &CreateArticleSchema) -> Result<SingleArticleResponse> {
         let id = rand_generate_num();
         
-        let article_moel = ArticleModel {
+        let article_model = ArticleModel {
             sys_id: ObjectId::new(),
             id: id.to_owned(),
             title: body.title.to_owned(),
@@ -515,7 +557,7 @@ impl DB {
         // };
     
         //插入数据库
-        let insert_result = match self.article_collection.insert_one(&article_moel, None).await {
+        let insert_result = match self.article_collection.insert_one(&article_model, None).await {
             Ok(result) => result,
             Err(e) => {
                 if e.to_string()

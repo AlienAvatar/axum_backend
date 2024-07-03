@@ -20,30 +20,27 @@ pub async fn article_list_handler(
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let token = headers.get("token");
-    if(token.is_none()){
-        let error_response = serde_json::json!({
-            "status": "fail",
-            "message": "Token is empty"
-        });
-        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-    }
+    // let token = headers.get("token");
+    // if(token.is_none()){
+    //     let error_response = serde_json::json!({
+    //         "status": "fail",
+    //         "message": "Token is empty"
+    //     });
+    //     return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    // }
 
-    let tokenstr = token.unwrap().to_str().unwrap();
-    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
-    {
-        Ok(token_details) => token_details,
-        Err(e) => {
-            let error_response = serde_json::json!({
-                "status": "fail",
-                "message": format_args!("{:?}", e)
-            });
-            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-        }
-    };
-
-    //dbg!(token_details);
-    //verify_token_handler(token, app_state);
+    // let tokenstr = token.unwrap().to_str().unwrap();
+    // match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
+    // {
+    //     Ok(token_details) => token_details,
+    //     Err(e) => {
+    //         let error_response = serde_json::json!({
+    //             "status": "fail",
+    //             "message": format_args!("{:?}", e)
+    //         });
+    //         return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    //     }
+    // };
 
     let Query(opts) = opts.unwrap_or_default();
 
@@ -52,16 +49,19 @@ pub async fn article_list_handler(
     let id = opts.id.unwrap_or("".to_string());
     let title = opts.title.unwrap_or("".to_string());
     let author = opts.author.unwrap_or("".to_string());
-    let tags = opts.tags.unwrap_or("".to_string());
+    let category = opts.category.unwrap_or("".to_string());
     let is_delete = opts.is_delete.unwrap_or(false);
 
     match app_state
         .db
-        .fetch_articles(limit, page,id.as_str(), title.as_str(), author.as_str(), tags.as_str(), &is_delete)
+        .fetch_articles(limit, page,id.as_str(), title.as_str(), author.as_str(), category.as_str(), &is_delete)
         .await
         .map_err(MyError::from)
     {
-        Ok(res) => Ok(Json(res)),
+        
+        Ok(res) => {
+            return Ok(Json(res))
+        },
         Err(e) => Err(e.into()),
     }
 }
@@ -78,7 +78,7 @@ async fn fetch_articles_by_category(
 ) {
     let articles = app_state
         .db
-        .fetch_articles(limit, page, "", "", "", category, &is_delete)
+        .fetch_articles_page(limit, page, "", "", "", category, &is_delete)
         .await
         .map_err(MyError::from);
 
@@ -239,6 +239,24 @@ pub async fn article_home_list_handler(
         is_delete,
         &mut res_vec
     ).await;
+    category = "羌佛文告";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit - 5,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "总部文告";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit - 5,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
     // match app_state
     //     .db
     //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
@@ -394,28 +412,6 @@ pub async fn get_article_by_id_handler(
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let token = headers.get("token");
-    if(token.is_none()){
-        let error_response = serde_json::json!({
-            "status": "fail",
-            "message": "Token is empty"
-        });
-        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-    }
-
-    let tokenstr = token.unwrap().to_str().unwrap();
-    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
-    {
-        Ok(token_details) => token_details,
-        Err(e) => {
-            let error_response = serde_json::json!({
-                "status": "fail",
-                "message": format_args!("{:?}", e)
-            });
-            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-        }
-    };
-
     match app_state.db.get_article(&id).await.map_err(MyError::from) {
         Ok(res) => Ok(Json(res)),
         Err(e) => Err(e.into()),

@@ -5,7 +5,7 @@ use serde::Serialize;
 #[derive(Serialize, Debug)]
 pub struct ArticleListResponse {
     pub status: &'static str,
-    pub results: usize,
+    pub count: usize,
     pub articles: Vec<ArticleResponse>,
 }
 

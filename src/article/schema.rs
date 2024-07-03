@@ -9,7 +9,7 @@ pub struct FilterOptions {
     pub id: Option<String>,
     pub title: Option<String>,
     pub author: Option<String>,
-    pub tags: Option<String>,
+    pub category: Option<String>,
     pub is_delete: Option<bool>,
 }
 
