@@ -9,11 +9,13 @@ use serde_json::{json, Map, Value};
 use crate::{
     error::MyError, token::{self, verify_jwt_token, TokenDetails}, 
     user::{model::TokenClaims, response::{MessageResponse, TokenMessageResponse}}, 
-    article::schema::{FilterOptions, CreateArticleSchema, UpdateArticleSchema}, 
+    article::schema::{FilterOptions, CreateArticleSchema, UpdateArticleSchema, FliterCommentsOptions}, 
     article::response::ArticleListResponse,
     AppState
 };
 use scraper::{Html, Selector};
+
+use super::schema::UpdateArticleSupportUserSchema;
 
 pub async fn article_list_handler(
     opts: Option<Query<FilterOptions>>,
@@ -87,8 +89,7 @@ async fn fetch_articles_by_category(
         "data": &articles.unwrap(),
         
     });
-    // let articles_value = articles.unwrap();
-    // *count += articles_value.results;
+
     vec.push(res_list);
 }
 
@@ -257,109 +258,6 @@ pub async fn article_home_list_handler(
         is_delete,
         &mut res_vec
     ).await;
-    // match app_state
-    //     .db
-    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
-    //     .await
-    // .map_err(MyError::from)
-    // {
-    //     Ok(res) =>{
-    //         res_vec.push(res);
-    //     }
-    //     Err(e) => {
-    //         return Err(e.into())
-    //     },
-    // }
-
-    // category = "认证恭祝";
-    // match app_state
-    //     .db
-    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
-    //     .await
-    //     .map_err(MyError::from)
-    // {
-    //     Ok(res) =>{
-    //         res_vec.push(res);
-    //     }
-    //     Err(e) => {
-    //         return Err(e.into())
-    //     },
-    // }
-
-    // category = "羌佛圣量";
-    // match app_state
-    //     .db
-    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
-    //     .await
-    //     .map_err(MyError::from)
-    // {
-    //     Ok(res) =>{
-    //         res_vec.push(res);
-    //     }
-    //     Err(e) => {
-    //         return Err(e.into())
-    //     },
-    // }
-
-    // category = "羌佛圣迹";
-    // match app_state
-    //     .db
-    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
-    //     .await
-    //     .map_err(MyError::from)
-    // {
-    //     Ok(res) =>{
-    //         res_vec.push(res);
-    //     }
-    //     Err(e) => {
-    //         return Err(e.into())
-    //     },
-    // }
-
-    // category = "圆满佛格";
-    // match app_state
-    //     .db
-    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
-    //     .await
-    //     .map_err(MyError::from)
-    // {
-    //     Ok(res) =>{
-    //         res_vec.push(res);
-    //     }
-    //     Err(e) => {
-    //         return Err(e.into())
-    //     },
-    // }
-
-    // category = "妙谙五明";
-    // match app_state
-    //     .db
-    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
-    //     .await
-    //     .map_err(MyError::from)
-    // {
-    //     Ok(res) =>{
-    //         res_vec.push(res);
-    //     }
-    //     Err(e) => {
-    //         return Err(e.into())
-    //     },
-    // }
-
-    // category = "渡生成就";
-    // match app_state
-    //     .db
-    //     .fetch_articles(limit, page,"", "", "", category, &is_delete)
-    //     .await
-    //     .map_err(MyError::from)
-    // {
-    //     Ok(res) =>{
-    //         res_vec.push(res);
-    //     }
-    //     Err(e) => {
-    //         return Err(e.into())
-    //     },
-    // }
 
     let res_response = serde_json::json!({
         "status": "success",
@@ -409,11 +307,37 @@ pub async fn create_article_handler(
 
 pub async fn get_article_by_id_handler(
     Path(id): Path<String>,
-    headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+
+
     match app_state.db.get_article(&id).await.map_err(MyError::from) {
-        Ok(res) => Ok(Json(res)),
+        Ok(article_res) => {
+            match app_state.db.fetch_comments_by_aritcle_id(&id, 1, 10).await.map_err(MyError::from) {
+                Ok(comment_res) => {
+                    let success_response = serde_json::json!({
+                        "status": "success",
+                        "data" : {
+                            "article": article_res,
+                            "comment_list" : comment_res,
+                        },
+                        "message": format_args!("{:?}", "读取成功")
+                    });
+                    return Ok(Json(success_response));
+                }
+                Err(e) => {
+                    // let success_response = serde_json::json!({
+                    //     "status": "success",
+                    //     "data" : {
+                    //         "article": article_res,
+                    //         "comment_list" : comment_res,
+                    //     },
+                    //     "message": format_args!("{:?}", "读取成功")
+                    // });
+                    return Err(e.into());
+                }
+            }
+        }
         Err(e) => Err(e.into()),
     }
 }
@@ -453,6 +377,70 @@ pub async fn update_article_by_id_handler(
         .map_err(MyError::from)
     {
         Ok(res) => Ok(Json(res)),
+        Err(e) => Err(e.into()),
+    }
+}
+
+pub async fn update_support_count_by_id_handler(
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    State(app_state): State<Arc<AppState>>,
+    Json(body): Json<UpdateArticleSupportUserSchema>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let token = headers.get("token");
+    if(token.is_none()){
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": "Token is empty"
+        });
+        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    }
+
+    let tokenstr = token.unwrap().to_str().unwrap();
+    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
+    {
+        Ok(token_details) => token_details,
+        Err(e) => {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format_args!("{:?}", e)
+            });
+            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+        }
+    };
+
+    let get_article = app_state.db.get_article(&id).await;
+    let support_article = get_article.unwrap().data.article;
+
+    let mut support_user_list = support_article.support_users;
+    let is_exsist = support_user_list.clone().contains(&body.support_user);
+    //判断当前user是否已经支持过
+    if(is_exsist){
+        let response = serde_json::json!({
+            "status": "conflict",
+            "message": format_args!("{:?}", "This user has already supported this article")
+        });
+        return Ok(Json(response))
+    }
+
+    support_user_list.push(body.support_user);
+    let update_body = UpdateArticleSchema{
+        title : support_article.title,
+        author : support_article.author,
+        content : support_article.content,
+        support_count : support_article.support_count + 1,
+        support_users : support_user_list,
+        category : support_article.category,
+        views_count : support_article.views_count,
+    };
+
+    match app_state
+        .db
+        .update_article(&id, &update_body)
+        .await
+        .map_err(MyError::from)
+    {
+        Ok(res) => Ok(Json(serde_json::to_value(res).unwrap())),
         Err(e) => Err(e.into()),
     }
 }

@@ -102,6 +102,7 @@ async fn main() -> Result<(), MyError> {
 //         }
 //     };
 //     let appstate:Arc<AppState> = Arc::new(AppState { db: db.clone(), env: config.clone(), redis_client: redis_client.clone()});
+
 //     // 解析 HTML 文档
 //     // 羌佛文告 95
 //     let office_announcement_news_url = "http://www.gufowang.org/office-announcement/";
@@ -158,12 +159,12 @@ async fn main() -> Result<(), MyError> {
 //     public_handler(document, appstate.clone()).await;
 
 //     //古佛降世 10
-//     // let buddha_url = "http://www.gufowang.org/buddha/";
-//     // let buddha_response = reqwest::get(buddha_url).await.unwrap();
-//     // let buddha_html = buddha_response.text().await.unwrap();
-//     // let buddha_document = Html::parse_document(&buddha_html);
-//     // //buddha_handler(buddha_document, appstate.clone()).await;
-//     // public_crawl_handler(buddha_document, appstate.clone(), "古佛降世").await;
+        // let buddha_url = "http://www.gufowang.org/buddha/";
+        // let buddha_response = reqwest::get(buddha_url).await.unwrap();
+        // let buddha_html = buddha_response.text().await.unwrap();
+        // let buddha_document = Html::parse_document(&buddha_html);
+        // //buddha_handler(buddha_document, appstate.clone()).await;
+        // public_crawl_handler(buddha_document, appstate.clone(), "古佛降世").await;
 
 //     //羌佛说法 23
 //     let buddha_dharma_url = "http://www.gufowang.org/buddha-dharma/";

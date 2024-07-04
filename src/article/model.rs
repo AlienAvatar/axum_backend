@@ -11,6 +11,7 @@ pub struct ArticleModel {
     pub author: String,
     pub title: String,
     pub content: String,
+    pub support_users: Vec<String>,
     pub support_count: i32,
     pub views_count: i32,
     pub category: String,

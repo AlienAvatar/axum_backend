@@ -113,28 +113,6 @@ pub async fn comment_list_by_article_id_handler(
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let token = headers.get("token");
-    if(token.is_none()){
-        let error_response = serde_json::json!({
-            "status": "fail",
-            "message": "Token is empty"
-        });
-        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-    }
-
-    let tokenstr = token.unwrap().to_str().unwrap();
-    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
-    {
-        Ok(token_details) => token_details,
-        Err(e) => {
-            let error_response = serde_json::json!({
-                "status": "fail",
-                "message": format_args!("{:?}", e)
-            });
-            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-        }
-    };
-
     //dbg!(token_details);
     //verify_token_handler(token, app_state);
 
@@ -156,31 +134,8 @@ pub async fn comment_list_by_article_id_handler(
 
 pub async fn get_comment_by_id_handler(
     Path(id): Path<String>,
-    headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let token = headers.get("token");
-    if(token.is_none()){
-        let error_response = serde_json::json!({
-            "status": "fail",
-            "message": "Token is empty"
-        });
-        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-    }
-
-    let tokenstr = token.unwrap().to_str().unwrap();
-    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
-    {
-        Ok(token_details) => token_details,
-        Err(e) => {
-            let error_response = serde_json::json!({
-                "status": "fail",
-                "message": format_args!("{:?}", e)
-            });
-            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-        }
-    };
-
     match app_state.db.get_comment_by_comment_id(&id).await.map_err(MyError::from) {
         Ok(res) => Ok(Json(res)),
         Err(e) => Err(e.into()),

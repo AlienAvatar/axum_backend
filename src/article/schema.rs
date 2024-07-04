@@ -13,6 +13,10 @@ pub struct FilterOptions {
     pub is_delete: Option<bool>,
 }
 
+pub struct FliterCommentsOptions {
+    pub page: Option<usize>,
+    pub limit: Option<usize>,
+}
 #[derive(Deserialize, Debug)]
 pub struct ParamOptions {
     pub id: String,
@@ -34,7 +38,13 @@ pub struct UpdateArticleSchema {
     pub content: String,
     pub category: String,
     pub support_count: i32,
+    pub support_users: Vec<String>,
     pub views_count: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateArticleSupportUserSchema {
+    pub support_user: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -19,6 +19,7 @@ pub struct ArticleResponse {
     pub title: String,
     pub content: String,
     pub support_count: i32,
+    pub support_users: Vec<String>,
     pub views_count: i32,
     pub category: String,
     pub cover_img: String,
