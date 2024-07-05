@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use mongodb::bson::oid::ObjectId;
 use serde::Serialize;
+use crate::comment::response::CommentListResponse;
 
 #[derive(Serialize, Debug)]
 pub struct ArticleListResponse {
@@ -39,4 +40,10 @@ pub struct ArticleData {
 pub struct SingleArticleResponse {
     pub status: &'static str,
     pub data: ArticleData,
+}
+
+#[derive(Serialize, Debug)]
+pub struct CompackResponse{
+    pub article: SingleArticleResponse,
+    pub comment_list: CommentListResponse,
 }

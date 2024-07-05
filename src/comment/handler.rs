@@ -41,8 +41,8 @@ pub async fn create_comment_handler(
          Ok(token_details) => token_details,
          Err(e) => {
              let error_response = serde_json::json!({
-                 "status": "fail",
-                 "message": format_args!("{:?}", e)
+                "status": "fail",
+                "message": format_args!("{:?}", e),
              });
              return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
          }
@@ -63,6 +63,7 @@ pub async fn comment_list_handler(
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    println!("comment_list_handler");
     let token = headers.get("token");
     if(token.is_none()){
         let error_response = serde_json::json!({
@@ -110,7 +111,6 @@ pub async fn comment_list_handler(
 pub async fn comment_list_by_article_id_handler(
     Path(article_id): Path<String>,
     opts: Option<Query<FilterOptions>>,
-    headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     //dbg!(token_details);
@@ -121,13 +121,17 @@ pub async fn comment_list_by_article_id_handler(
     let limit = opts.limit.unwrap_or(6) as i64;
     let page = opts.page.unwrap_or(1) as i64;
         
+
     match app_state
         .db
         .fetch_comments_by_aritcle_id(&article_id, limit, page)
         .await
         .map_err(MyError::from)
     {
-        Ok(res) => Ok(Json(res)),
+        Ok(res) => {
+            dbg!(&res);
+            return Ok(Json(res));
+        },
         Err(e) => Err(e.into()),
     }
 }

@@ -13,6 +13,7 @@ pub struct CommentModel {
     pub content: String,
     pub support_count: i32,
     pub is_delete: Option<bool>,
+    pub support_users: Vec<String>,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: DateTime<Utc>,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]

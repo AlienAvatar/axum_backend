@@ -19,6 +19,7 @@ pub struct CommentResponse {
     pub article_id: String,
     pub author: String,
     pub support_count: i32,
+    pub support_users: Vec<String>,
     pub is_delete: Option<bool>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

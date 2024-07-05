@@ -15,7 +15,7 @@ use crate::{
 };
 use scraper::{Html, Selector};
 
-use super::schema::UpdateArticleSupportUserSchema;
+use super::{response::CompackResponse, schema::UpdateArticleSupportUserSchema};
 
 pub async fn article_list_handler(
     opts: Option<Query<FilterOptions>>,
@@ -310,35 +310,32 @@ pub async fn get_article_by_id_handler(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
 
+    let comment_data = app_state.db.fetch_comments_by_aritcle_id(&id, 1, 6).await;
+    let test = comment_data.unwrap();
+    println!("{}", test.comments.len());
+
+    let s = app_state
+        .db
+        .fetch_comments_by_aritcle_id(&id, 1, 6)
+        .await
+        .map_err(MyError::from);
+    dbg!(s.unwrap());
 
     match app_state.db.get_article(&id).await.map_err(MyError::from) {
         Ok(article_res) => {
-            match app_state.db.fetch_comments_by_aritcle_id(&id, 1, 10).await.map_err(MyError::from) {
-                Ok(comment_res) => {
-                    let success_response = serde_json::json!({
-                        "status": "success",
-                        "data" : {
-                            "article": article_res,
-                            "comment_list" : comment_res,
-                        },
-                        "message": format_args!("{:?}", "读取成功")
-                    });
-                    return Ok(Json(success_response));
-                }
-                Err(e) => {
-                    // let success_response = serde_json::json!({
-                    //     "status": "success",
-                    //     "data" : {
-                    //         "article": article_res,
-                    //         "comment_list" : comment_res,
-                    //     },
-                    //     "message": format_args!("{:?}", "读取成功")
-                    // });
-                    return Err(e.into());
-                }
-            }
-        }
-        Err(e) => Err(e.into()),
+            let compack_data = CompackResponse{
+                article: article_res,
+                comment_list: test,
+            };
+            //未异步就直接返回了
+            let success_response = serde_json::json!({
+                "status": "success",
+                "data": compack_data,
+                "message": format!("{:?}", "读取成功")
+            });
+            return Ok(Json(success_response));
+        },
+        Err(e) => Err(e.into())
     }
 }
 

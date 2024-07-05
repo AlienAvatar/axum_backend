@@ -680,21 +680,22 @@ impl DB {
             content: body.content.to_owned(),
             author: body.author.to_owned(),
             support_count: 0,
+            support_users: Vec::new(),
             is_delete:  Some(false),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
     
         //把commentname作为构建唯一索引
-        let options = IndexOptions::builder().unique(false).build();
-        let index = IndexModel::builder()
-            .keys(doc! { &comment_moel.id: 1 })
-            .options(options)
-            .build();
-        match self.comment_collection.create_index(index, None).await {
-            Ok(_) => {}
-            Err(e) => return Err(MongoQueryError(e)),
-        };
+        // let options = IndexOptions::builder().unique(false).build();
+        // let index = IndexModel::builder()
+        //     .keys(doc! { &comment_moel.sys_id: 1 })
+        //     .options(options)
+        //     .build();
+        // match self.comment_collection.create_index(index, None).await {
+        //     Ok(_) => {}
+        //     Err(e) => return Err(MongoQueryError(e)),
+        // };
     
         //插入数据库
         let insert_result = match self.comment_collection.insert_one(&comment_moel, None).await {
@@ -714,7 +715,7 @@ impl DB {
             .inserted_id
             .as_object_id()
             .expect("issue with new _id");
-        //检测是否有重复id
+        //检测生成的id是否有重复
         let comment_doc = match self
             .comment_collection
             .find_one(doc! {"_id": new_id}, None)
@@ -764,7 +765,9 @@ impl DB {
         })
     }
     
-    pub async fn fetch_comments_by_aritcle_id(&self, article_id: &str, limit: i64, page: i64) -> Result<CommentListResponse> {
+    pub async fn fetch_comments_by_aritcle_id(&self, article_id: &str, limit: i64, page: i64) 
+        -> Result<CommentListResponse> {
+        println!("article_id {}", article_id);    
         let find_options = FindOptions::builder()
             .limit(limit)
             .skip(u64::try_from((page - 1) * limit).unwrap())
@@ -797,6 +800,7 @@ impl DB {
             author: comment.author.to_owned(),
             content: comment.content.to_owned(),
             support_count: comment.support_count,
+            support_users: comment.support_users.clone(),
             is_delete: comment.is_delete,
             created_at: comment.created_at,
             updated_at: comment.updated_at,
