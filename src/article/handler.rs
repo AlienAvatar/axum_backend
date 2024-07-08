@@ -258,6 +258,24 @@ pub async fn article_home_list_handler(
         is_delete,
         &mut res_vec
     ).await;
+    category = "大德文集";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit - 5,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
+    category = "圣德回复";
+    fetch_articles_by_category(
+        app_state.clone(),
+        limit - 5,
+        page,
+        category,
+        is_delete,
+        &mut res_vec
+    ).await;
 
     let res_response = serde_json::json!({
         "status": "success",
@@ -309,17 +327,16 @@ pub async fn get_article_by_id_handler(
     Path(id): Path<String>,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-
     let comment_data = app_state.db.fetch_comments_by_aritcle_id(&id, 1, 6).await;
     let test = comment_data.unwrap();
-    println!("{}", test.comments.len());
 
-    let s = app_state
-        .db
-        .fetch_comments_by_aritcle_id(&id, 1, 6)
-        .await
-        .map_err(MyError::from);
-    dbg!(s.unwrap());
+    //To do 获取评论
+    // let comment_list_data = app_state
+    //     .db
+    //     .fetch_comments_by_aritcle_id(&id, 1, 6)
+    //     .await
+    //     .map_err(MyError::from);
+    // dbg!(comment_list_data.unwrap());
 
     match app_state.db.get_article(&id).await.map_err(MyError::from) {
         Ok(article_res) => {

@@ -63,32 +63,6 @@ pub async fn comment_list_handler(
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    println!("comment_list_handler");
-    let token = headers.get("token");
-    if(token.is_none()){
-        let error_response = serde_json::json!({
-            "status": "fail",
-            "message": "Token is empty"
-        });
-        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-    }
-
-    let tokenstr = token.unwrap().to_str().unwrap();
-    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
-    {
-        Ok(token_details) => token_details,
-        Err(e) => {
-            let error_response = serde_json::json!({
-                "status": "fail",
-                "message": format_args!("{:?}", e)
-            });
-            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-        }
-    };
-
-    //dbg!(token_details);
-    //verify_token_handler(token, app_state);
-
     let Query(opts) = opts.unwrap_or_default();
 
     let limit = opts.limit.unwrap_or(6) as i64;
@@ -113,9 +87,6 @@ pub async fn comment_list_by_article_id_handler(
     opts: Option<Query<FilterOptions>>,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    //dbg!(token_details);
-    //verify_token_handler(token, app_state);
-
     let Query(opts) = opts.unwrap_or_default();
 
     let limit = opts.limit.unwrap_or(6) as i64;
@@ -129,7 +100,7 @@ pub async fn comment_list_by_article_id_handler(
         .map_err(MyError::from)
     {
         Ok(res) => {
-            dbg!(&res);
+            // dbg!(&res);
             return Ok(Json(res));
         },
         Err(e) => Err(e.into()),

@@ -118,21 +118,35 @@ async fn main() -> Result<(), MyError> {
 //     let announcement_news_document = Html::parse_document(&announcement_news_html);
 //     public_crawl_handler(announcement_news_document, appstate.clone(), "总部文告").await;
 
+//     // 大德文集 44
+//     let discourse_url = "http://www.gufowang.org/discourse/";
+//     let discourse_response = reqwest::get(discourse_url).await.unwrap();
+//     let discourse_html = discourse_response.text().await.unwrap();
+//     let discourse_document = Html::parse_document(&discourse_html);
+//     public_crawl_handler(discourse_document, appstate.clone(), "大德文集").await;
+
+//     // 圣德回复 19
+//     let answer_url = "http://www.gufowang.org/temple/answer/";
+//     let answer_response = reqwest::get(answer_url).await.unwrap();
+//     let answer_html = answer_response.text().await.unwrap();
+//     let answer_document = Html::parse_document(&answer_html);
+//     public_crawl_handler(answer_document, appstate.clone(), "圣德回复").await;
+
 //      //受用分享 27
-//         // let benefit_url = "http://www.gufowang.org/benefit/";
-//         // let benefit_response = reqwest::get(benefit_url).await.unwrap();
-//         // let benefit_html = benefit_response.text().await.unwrap();
-//         // let benefit_document = Html::parse_document(&benefit_html);
-//         // // 访问公告中的li元素
-//         // public_crawl_handler(benefit_document, appstate.clone(), "受用分享").await;
+//     let benefit_url = "http://www.gufowang.org/benefit/";
+//     let benefit_response = reqwest::get(benefit_url).await.unwrap();
+//     let benefit_html = benefit_response.text().await.unwrap();
+//     let benefit_document = Html::parse_document(&benefit_html);
+//     // 访问公告中的li元素
+//     public_crawl_handler(benefit_document, appstate.clone(), "受用分享").await;
 
 //     //佛书法著
-//     // let foshu_url = "http://www.gufowang.org/foshu/";
-//     // let foshu_response = reqwest::get(foshu_url).await.unwrap();
-//     // let foshu_html = foshu_response.text().await.unwrap();
-//     // let foshu_document = Html::parse_document(&foshu_html);
-//     // // 访问公告中的li元素
-//     // public_crawl_handler(foshu_document, appstate.clone(), "佛书法著").await;
+//     let foshu_url = "http://www.gufowang.org/foshu/";
+//     let foshu_response = reqwest::get(foshu_url).await.unwrap();
+//     let foshu_html = foshu_response.text().await.unwrap();
+//     let foshu_document = Html::parse_document(&foshu_html);
+//     // 访问公告中的li元素
+//     public_crawl_handler(foshu_document, appstate.clone(), "佛书法著").await;
 
 //     // 正法新闻 56
 //     let true_dharma_news_url = "http://www.gufowang.org/true-dharma-news/";
@@ -159,12 +173,12 @@ async fn main() -> Result<(), MyError> {
 //     public_handler(document, appstate.clone()).await;
 
 //     //古佛降世 10
-        // let buddha_url = "http://www.gufowang.org/buddha/";
-        // let buddha_response = reqwest::get(buddha_url).await.unwrap();
-        // let buddha_html = buddha_response.text().await.unwrap();
-        // let buddha_document = Html::parse_document(&buddha_html);
-        // //buddha_handler(buddha_document, appstate.clone()).await;
-        // public_crawl_handler(buddha_document, appstate.clone(), "古佛降世").await;
+//         let buddha_url = "http://www.gufowang.org/buddha/";
+//         let buddha_response = reqwest::get(buddha_url).await.unwrap();
+//         let buddha_html = buddha_response.text().await.unwrap();
+//         let buddha_document = Html::parse_document(&buddha_html);
+//         //buddha_handler(buddha_document, appstate.clone()).await;
+//         public_crawl_handler(buddha_document, appstate.clone(), "古佛降世").await;
 
 //     //羌佛说法 23
 //     let buddha_dharma_url = "http://www.gufowang.org/buddha-dharma/";
