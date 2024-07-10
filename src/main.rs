@@ -23,6 +23,7 @@ use reqwest;
 use scraper::{Html, Selector};
 use std::rc::Rc;
 use crate::crawel::handler::{public_handler, public_crawl_handler, shared_handler};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod user;
 mod error;
@@ -64,11 +65,21 @@ async fn main() -> Result<(), MyError> {
     // 创建一个表示"token"头部的HeaderValue实例
     let token_header = "token".parse::<HeaderName>().unwrap();
 
+    // 日志追踪
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "example_multipart_form=debug,tower_http=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     let origins = [
         "http://localhost:5173".parse().unwrap(),
         "http://localhost:8080".parse().unwrap(),
         "http://localhost:10002".parse().unwrap(),
         "http://localhost:10003".parse().unwrap(),
+        "http://localhost:10001".parse().unwrap(),
     ];
     
     let cors = CorsLayer::new()
@@ -82,12 +93,15 @@ async fn main() -> Result<(), MyError> {
     println!("🚀 Server started successfully");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:10001").await.unwrap();
 
+    tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 
     Ok(())
 }
 
-
+async fn handler_404() -> impl IntoResponse {
+    (StatusCode::NOT_FOUND, "nothing to see here")
+}
 // #[tokio::main]
 // async fn main() {
 //     // 获取 http://www.gufowang.org/ 网页的 HTML 内容
@@ -243,38 +257,14 @@ async fn main() -> Result<(), MyError> {
 
 //         let mut o_file = fs::File::create(&filename).await.unwrap();
 
-//         while let Ok(chun_data) =  field.chunk().await{
-//             if let Some(bytes_data) = chun_data {
-//                 o_file.write_all(&bytes_data).await.unwrap();
-//             } else {
-//                 break;
-//             }
-//         }
+        // while let Ok(chun_data) =  field.chunk().await{
+        //     if let Some(bytes_data) = chun_data {
+        //         o_file.write_all(&bytes_data).await.unwrap();
+        //     } else {
+        //         break;
+        //     }
+        // }
         
 //     }
 //     Html("upload successful")
-// }
-
-
-
-// fn init_logger() {
-//     use chrono::Local;
-//     use std::io::Write;
-
-//     let env = env_logger::Env::default()
-//         .filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
-//     // 设置日志打印格式
-//     env_logger::Builder::from_env(env)
-//         .format(|buf, record| {
-//             writeln!(
-//                 buf,
-//                 "{} {} [{}] {}",
-//                 Local::now().format("%Y-%m-%d %H:%M:%S"),
-//                 record.level(),
-//                 record.module_path().unwrap_or("<unnamed>"),
-//                 &record.args()
-//             )
-//         })
-//         .init();
-//     log::info!("env_logger initialized.");
 // }
