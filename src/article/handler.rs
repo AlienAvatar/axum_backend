@@ -22,28 +22,6 @@ pub async fn article_list_handler(
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // let token = headers.get("token");
-    // if(token.is_none()){
-    //     let error_response = serde_json::json!({
-    //         "status": "fail",
-    //         "message": "Token is empty"
-    //     });
-    //     return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-    // }
-
-    // let tokenstr = token.unwrap().to_str().unwrap();
-    // match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
-    // {
-    //     Ok(token_details) => token_details,
-    //     Err(e) => {
-    //         let error_response = serde_json::json!({
-    //             "status": "fail",
-    //             "message": format_args!("{:?}", e)
-    //         });
-    //         return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-    //     }
-    // };
-
     let Query(opts) = opts.unwrap_or_default();
 
     let limit = opts.limit.unwrap_or(10) as i64;

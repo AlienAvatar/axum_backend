@@ -64,10 +64,14 @@ async fn main() -> Result<(), MyError> {
     // 创建一个表示"token"头部的HeaderValue实例
     let token_header = "token".parse::<HeaderName>().unwrap();
 
+    let origins = [
+        "http://localhost:5173".parse().unwrap(),
+        "http://localhost:8080".parse().unwrap(),
+        "http://localhost:10002".parse().unwrap(),
+        "http://localhost:10003".parse().unwrap(),
+    ];
     let cors = CorsLayer::new()
-        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
-        .allow_origin("http://localhost:8080".parse::<HeaderValue>().unwrap())
-        .allow_origin("http://localhost:10002".parse::<HeaderValue>().unwrap())
+        .allow_origin(origins)
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_credentials(true)
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE, CONTENT_LANGUAGE, ACCEPT_LANGUAGE, token_header]);
