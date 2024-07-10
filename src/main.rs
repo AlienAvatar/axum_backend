@@ -70,6 +70,7 @@ async fn main() -> Result<(), MyError> {
         "http://localhost:10002".parse().unwrap(),
         "http://localhost:10003".parse().unwrap(),
     ];
+    
     let cors = CorsLayer::new()
         .allow_origin(origins)
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
