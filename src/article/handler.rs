@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 use axum::{
-    extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
+    extract::{Path, Query, State, Multipart, Request, multipart},
+    http::{header, HeaderMap, HeaderValue, StatusCode, HeaderName},
     response::{IntoResponse},
     Json,
 };
@@ -14,8 +14,9 @@ use crate::{
     AppState
 };
 use scraper::{Html, Selector};
-
+use rand::prelude::random;
 use super::{response::CompackResponse, schema::UpdateArticleSupportUserSchema};
+use std::fs::read;
 
 pub async fn article_list_handler(
     opts: Option<Query<FilterOptions>>,
@@ -77,7 +78,6 @@ pub async fn article_home_list_handler(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let Query(opts) = opts.unwrap_or_default();
 
-    let mut count = 0;
     let limit = opts.limit.unwrap_or(10) as i64;
     let page = opts.page.unwrap_or(1) as i64;
     let is_delete = false;
@@ -281,6 +281,73 @@ pub async fn create_article_handler(
         Ok(res) => Ok((StatusCode::CREATED, Json(res))),
         Err(e) => Err(e.into()),
     }
+}
+
+pub async fn upload_img_handle(
+    mut multipart: Multipart
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    while let Some(mut field) = multipart.next_field().await.unwrap() {
+        //文件类型
+        let content_type = field.content_type().unwrap().to_string();
+
+        if content_type.starts_with("image/") {
+            //根据文件类型生成随机文件名(出于安全考虑)
+            let rnd = (random::<f32>() * 1000000000 as f32) as i32;
+             //提取"/"的index位置
+             let index = content_type
+                .find("/")
+                .map(|i| i)
+                .unwrap_or(usize::max_value());
+
+            //文件扩展名
+            let mut ext_name = "xxx";
+            if index != usize::max_value() {
+                ext_name = &content_type[index + 1..];
+            }
+
+            //文件存储路径
+            let save_filename = format!("{}/{}.{}", "img", rnd, ext_name);
+            //文件内容
+            let data = field.bytes().await.unwrap();
+
+            println!("filename:{},content_type:{}", save_filename, content_type);
+
+            let _write_img = tokio::fs::write(&save_filename, &data)
+            .await
+            .map_err(|err| err.to_string());
+
+            let url = format!("http:://localhost:10001/show_image/{}.{}", rnd, ext_name);
+            let response = serde_json::json!({
+                "status": "success",
+                "message": format!("/api/article/show_image/{}.{}", rnd, ext_name),
+            });
+            return Ok((StatusCode::ACCEPTED, Json(response)));
+        }
+    }
+    let response = serde_json::json!({
+        "status": "error",
+        "message": "No file was uploaded"
+    });
+    return Ok((StatusCode::ACCEPTED, Json(response)));
+}
+
+pub async fn show_img_handle(
+    Path(filename): Path<String>,
+) -> (HeaderMap, Vec<u8>) {
+    let index = filename.find(".").map(|i| i).unwrap_or(usize::max_value());
+    //文件扩展名
+    let mut ext_name = "xxx";
+    if index != usize::max_value() {
+        ext_name = &filename[index + 1..];
+    }
+    let content_type = format!("image/{}", ext_name);
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("content-type"),
+        HeaderValue::from_str(&content_type).unwrap(),
+    );
+    let file_name = format!("{}/{}", "img", filename);
+    (headers, read(&file_name).unwrap())
 }
 
 pub async fn get_article_by_id_handler(

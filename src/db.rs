@@ -579,7 +579,7 @@ impl DB {
         //检测是否有重复id
         let article_doc = match self
             .article_collection
-            .find_one(doc! {"_id": 1}, None)
+            .find_one(doc! {"_id": new_id}, None)
             .await
         {
             Ok(Some(doc)) => doc,

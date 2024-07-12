@@ -22,6 +22,8 @@ use tokio::{fs::File, io::BufWriter};
 use std::io;
 use rand::prelude::random;
 use std::fs::read;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use local_ip_address::local_ip;
 
 const UPLOADS_DIRECTORY: &str = "img";
 #[derive(Deserialize)]
@@ -59,10 +61,10 @@ pub async fn show_form() -> Html<&'static str> {
         <html>
             <head></head>
             <body>
-                <form action="/" method="post" enctype="multipart/form-data">
+                <form action="/api/note/test/" method="post" enctype="multipart/form-data">
                     <label>
                         Upload file:
-                        <input type="file" name="file" multiple>
+                        <input id="input_file" type="file" name="file" multiple>
                     </label>
 
                     <input type="submit" value="Upload files">
@@ -73,32 +75,6 @@ pub async fn show_form() -> Html<&'static str> {
     )
 }
 
-pub async fn stream_show_form() -> Html<&'static str> {
-    Html(
-        r#"
-        <!doctype html>
-        <html>
-            <head>
-                <title>Upload something!</title>
-            </head>
-            <body>
-                <form action="/" method="post" enctype="multipart/form-data">
-                    <div>
-                        <label>
-                            Upload file:
-                            <input type="file" name="file" multiple>
-                        </label>
-                    </div>
-
-                    <div>
-                        <input type="submit" value="Upload files">
-                    </div>
-                </form>
-            </body>
-        </html>
-        "#,
-    )
-}
 pub async fn accept_form(
     mut multipart: Multipart
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -136,11 +112,13 @@ pub async fn accept_form(
             .await
             .map_err(|err| err.to_string());
 
-            dbg!(_write_img);
-            let url = format!("http:://localhost:10001/show_image/{}.{}", rnd, ext_name);
+            //获取本地ip地址
+            let my_local_ip = local_ip();  
+            
+            let url: String = format!("http:://{}:10001/show_image/{}.{}", my_local_ip.unwrap(), rnd, ext_name);
             let response = serde_json::json!({
                 "status": "success",
-                "message": format!("/show_image/{}.{}", rnd, ext_name),
+                "message": url,
             });
             return Ok((StatusCode::ACCEPTED, Json(response)));
         }

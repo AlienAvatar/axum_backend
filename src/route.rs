@@ -13,13 +13,12 @@ use tower_http::{
 use crate::{
     article::handler::{
         article_home_list_handler, article_list_handler, create_article_handler, delete_article_by_id_handler, delete_article_by_ids_handler, get_article_by_id_handler, update_article_by_id_handler,
-        update_support_count_by_id_handler
+        update_support_count_by_id_handler, upload_img_handle, show_img_handle
     }, comment::handler::{
         comment_list_by_article_id_handler, comment_list_handler, create_comment_handler, delete_comment_by_comment_id_handler, get_comment_by_id_handler, update_comment_by_id_handler
     }, note::handler::{
         create_note_handler, delete_note_handler, edit_note_handler, get_note_handler,
         health_checker_handler, note_list_handler, show_form, accept_form, show_img,
-        stream_show_form,
     }, user::handler::{
         create_user_handler, delete_user_by_id_handler, delete_user_by_ids_handler, get_user_by_id_handler, get_user_by_username_handler, login_user_handler, logout_user_handler, update_password_by_username_handler, update_user_handler, user_list_handler
     }, AppState
@@ -36,6 +35,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
                 .patch(edit_note_handler)
                 .delete(delete_note_handler),
         )
+        .route("/api/note/form/", get(show_form))
         .route("/api/note/test/", post(accept_form))
         .route("/show_image/:filename", get(show_img))
         // .nest_service("/img", ServeDir::new("img"))
@@ -59,6 +59,9 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/article/delete/:id", post(delete_article_by_id_handler))
         .route("/api/article/delete_many/", post(delete_article_by_ids_handler))
         .route("/api/article/update/support_count/:id", post(update_support_count_by_id_handler))
+         // upload_file
+        .route("/api/article/upolad_img/", post(accept_form))
+        .route("/api/article/show_image/:filename", get(show_img_handle))
         //comment
         .route("/api/comment/list/", get(comment_list_handler))
         .route("/api/comment/list/:article_id", get(comment_list_by_article_id_handler))
