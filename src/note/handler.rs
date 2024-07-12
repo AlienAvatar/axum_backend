@@ -1,12 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 use tokio::{self, fs, io::AsyncWriteExt};
 use axum::{
-    extract::{Path, Query, State, Multipart, Request},
+    extract::{Path, Query, State, Multipart, Request, multipart},
     http::StatusCode,
+    http::header::{HeaderMap, HeaderValue, HeaderName},
     body::Bytes,
     response::{Html, Redirect},
     response::IntoResponse,
-    response::Response,
     BoxError, Json,
 };
 use mongodb::bson::Array;
@@ -20,6 +20,8 @@ use serde::{Deserialize, Serialize};
 use futures::{Stream, TryStreamExt};
 use tokio::{fs::File, io::BufWriter};
 use std::io;
+use rand::prelude::random;
+use std::fs::read;
 
 const UPLOADS_DIRECTORY: &str = "img";
 #[derive(Deserialize)]
@@ -99,36 +101,67 @@ pub async fn stream_show_form() -> Html<&'static str> {
 }
 pub async fn accept_form(
     mut multipart: Multipart
-) {
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     while let Some(mut field) = multipart.next_field().await.unwrap() {
         // let name = field.name().unwrap().to_string();
         // let mut o_file = fs::File::create(&name).await.unwrap();
+
         let filename: String = field.file_name().unwrap().to_string();
-
-        let img_folder = std::path::Path::new("img");
-        let file_path = img_folder.join(&filename);
-        let mut o_file = fs::File::create(&file_path).await.unwrap();
-       
-        while let Ok(chun_data) =  field.chunk().await{
-            if let Some(bytes_data) = chun_data {
-                o_file.write_all(&bytes_data).await.unwrap();
-            } else {
-                break;
-            }
-        }
-
+        //文件类型
         let content_type = field.content_type().unwrap().to_string();
-        let data = field.bytes().await.unwrap();
-        let image_url = format!("/img/{filename}");
 
+        if content_type.starts_with("image/") {
+            //根据文件类型生成随机文件名(出于安全考虑)
+            let rnd = (random::<f32>() * 1000000000 as f32) as i32;
+             //提取"/"的index位置
+             let index = content_type
+                .find("/")
+                .map(|i| i)
+                .unwrap_or(usize::max_value());
 
-        println!(
-            "Length of (`{filename}`: `{content_type}`) is {} bytes",
-            data.len()
-        );
+            //文件扩展名
+            let mut ext_name = "xxx";
+            if index != usize::max_value() {
+                ext_name = &content_type[index + 1..];
+            }
+
+            //文件存储路径
+            let save_filename = format!("{}/{}.{}", "img", rnd, ext_name);
+            //文件内容
+            let data = field.bytes().await.unwrap();
+
+            println!("filename:{},content_type:{}", save_filename, content_type);
+
+            let _write_img = tokio::fs::write(&save_filename, &data)
+            .await
+            .map_err(|err| err.to_string());
+
+            dbg!(_write_img);
+            let url = format!("http:://localhost:10001/show_image/{}.{}", rnd, ext_name);
+            let response = serde_json::json!({
+                "status": "success",
+                "message": format!("/show_image/{}.{}", rnd, ext_name),
+            });
+            return Ok((StatusCode::ACCEPTED, Json(response)));
+        }
     }
+    let response = serde_json::json!({
+        "status": "error",
+        "message": "No file was uploaded"
+    });
+    Ok((StatusCode::ACCEPTED, Json(response)))
 }
 
+async fn redirect(path: String) -> Result<(StatusCode, HeaderMap), String> {
+    let mut headers = HeaderMap::new();
+    //重设LOCATION，跳到新页面
+    headers.insert(
+        axum::http::header::LOCATION,
+        HeaderValue::from_str(&path).unwrap(),
+    );
+    //302重定向
+    Ok((StatusCode::FOUND, headers))
+}
 // pub async fn serve_image(Path(filename): Path<String>) -> Response<BoxBody> {
 //     let img_folder = std::path::Path::new("img");
 //     let file_path = img_folder.join(&filename);
@@ -148,10 +181,21 @@ pub async fn accept_form(
 
 pub async fn show_img(
     Path(filename): Path<String>,
-) -> String {
-    let img_str = format!("img/{}", filename);
-    println!("img_str: {}", img_str);
-    std::fs::read_to_string(img_str).unwrap()
+) -> (HeaderMap, Vec<u8>) {
+    let index = filename.find(".").map(|i| i).unwrap_or(usize::max_value());
+    //文件扩展名
+    let mut ext_name = "xxx";
+    if index != usize::max_value() {
+        ext_name = &filename[index + 1..];
+    }
+    let content_type = format!("image/{}", ext_name);
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("content-type"),
+        HeaderValue::from_str(&content_type).unwrap(),
+    );
+    let file_name = format!("{}/{}", "img", filename);
+    (headers, read(&file_name).unwrap())
 }
 
 pub async fn note_list_handler(
@@ -172,73 +216,6 @@ pub async fn note_list_handler(
         Ok(res) => Ok(Json(res)),
         Err(e) => Err(e.into()),
     }
-}
-
-pub async fn save_request_body(
-    Path(file_name): Path<String>,
-    request: Request,
-) -> Result<(), (StatusCode, String)> {
-    stream_to_file(&file_name, request.into_body().into_data_stream()).await
-}
-
-// Handler that accepts a multipart form upload and streams each field to a file.
-pub async fn stream_accept_form(mut multipart: Multipart) -> Result<Redirect, (StatusCode, String)> {
-    while let Ok(Some(field)) = multipart.next_field().await {
-        let file_name = if let Some(file_name) = field.file_name() {
-            println!("file_name: {}", file_name);
-            file_name.to_owned()
-        } else {
-            continue;
-        };
-
-        stream_to_file(&file_name, field).await?;
-    }
-
-    Ok(Redirect::to("/"))
-}
-
-// Save a `Stream` to a file
-async fn stream_to_file<S, E>(path: &str, stream: S) -> Result<(), (StatusCode, String)>
-where
-    S: Stream<Item = Result<Bytes, E>>,
-    E: Into<BoxError>,
-{
-    if !path_is_valid(path) {
-        return Err((StatusCode::BAD_REQUEST, "Invalid path".to_owned()));
-    }
-
-    async {
-        // Convert the stream into an `AsyncRead`.
-        let body_with_io_error = stream.map_err(|err| io::Error::new(io::ErrorKind::Other, err));
-        let body_reader = StreamReader::new(body_with_io_error);
-        futures::pin_mut!(body_reader);
-
-        // Create the file. `File` implements `AsyncWrite`.
-        let path = std::path::Path::new(UPLOADS_DIRECTORY).join(path);
-        let mut file = BufWriter::new(File::create(path).await?);
-
-        // Copy the body into the file.
-        tokio::io::copy(&mut body_reader, &mut file).await?;
-
-        Ok::<_, io::Error>(())
-    }
-    .await
-    .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
-}
-
-// to prevent directory traversal attacks we ensure the path consists of exactly one normal
-// component
-fn path_is_valid(path: &str) -> bool {
-    let path = std::path::Path::new(path);
-    let mut components = path.components().peekable();
-
-    if let Some(first) = components.peek() {
-        if !matches!(first, std::path::Component::Normal(_)) {
-            return false;
-        }
-    }
-
-    components.count() == 1
 }
 
 pub async fn create_note_handler(

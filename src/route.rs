@@ -18,7 +18,7 @@ use crate::{
         comment_list_by_article_id_handler, comment_list_handler, create_comment_handler, delete_comment_by_comment_id_handler, get_comment_by_id_handler, update_comment_by_id_handler
     }, note::handler::{
         create_note_handler, delete_note_handler, edit_note_handler, get_note_handler,
-        health_checker_handler, note_list_handler, show_form, accept_form, show_img, save_request_body, stream_accept_form,
+        health_checker_handler, note_list_handler, show_form, accept_form, show_img,
         stream_show_form,
     }, user::handler::{
         create_user_handler, delete_user_by_id_handler, delete_user_by_ids_handler, get_user_by_id_handler, get_user_by_username_handler, login_user_handler, logout_user_handler, update_password_by_username_handler, update_user_handler, user_list_handler
@@ -37,10 +37,8 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
                 .delete(delete_note_handler),
         )
         .route("/api/note/test/", post(accept_form))
-        .route("/api/note/show/:filename", get(show_img))
-        .nest_service("/img", ServeDir::new("img"))
-        .route("/", get(stream_show_form).post(stream_accept_form))
-        .route("/file/:file_name",  post(save_request_body))
+        .route("/show_image/:filename", get(show_img))
+        // .nest_service("/img", ServeDir::new("img"))
         // user
         .route("/api/user/list/", get(user_list_handler))
         .route("/api/user/create/", post(create_user_handler))
@@ -76,14 +74,6 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             250 * 1024 * 1024, /* 250mb */
         ))
         .layer(tower_http::trace::TraceLayer::new_for_http())
-    // let app = Router::new()
-    //     // login
-    //     .route("/login/getUserList", get(GetUserList))
-    //     .route("/login/addUser", post(CreateUser))
-    //     .route("/login/validUser", post(ValidUser))
-    //     .route("/upload_page", get(upload_page))
-    //     .route("/do_upload", post(do_upload));
-    // //let app = Router::new().route("/", get(home));
 }
 
 
