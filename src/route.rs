@@ -13,7 +13,7 @@ use tower_http::{
 use crate::{
     article::handler::{
         article_home_list_handler, article_list_handler, create_article_handler, delete_article_by_id_handler, delete_article_by_ids_handler, get_article_by_id_handler, update_article_by_id_handler,
-        update_support_count_by_id_handler, upload_img_handle, show_img_handle
+        update_support_count_by_id_handler, upload_img_handle, show_img_handle, update_cover_img_by_id_handle
     }, comment::handler::{
         comment_list_by_article_id_handler, comment_list_handler, create_comment_handler, delete_comment_by_comment_id_handler, get_comment_by_id_handler, update_comment_by_id_handler
     }, note::handler::{
@@ -59,6 +59,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/api/article/delete/:id", post(delete_article_by_id_handler))
         .route("/api/article/delete_many/", post(delete_article_by_ids_handler))
         .route("/api/article/update/support_count/:id", post(update_support_count_by_id_handler))
+        // .route("/api/article/update/upolad_img/:id", post(update_cover_img_by_id_handle))
          // upload_file
         .route("/api/article/upolad_img/", post(accept_form))
         .route("/api/article/show_image/:filename", get(show_img_handle))

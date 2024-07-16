@@ -6,9 +6,10 @@ use crate::article::response::{ArticleData, ArticleListResponse, ArticleResponse
 use crate::comment::response::{CommentData, CommentListResponse, CommentResponse, SingleCommentResponse};
 use crate::{
     error::MyError::*, note::model::NoteModel, user::model::UserModel, article::model::ArticleModel,
-    user::schema::{CreateUserSchema, UpdateUserSchema, DeleteUserSchema}, 
+    user::schema::{UpdateUserSchema, DeleteUserSchema}, 
     note::schema::{CreateNoteSchema, UpdateNoteSchema},
     article::schema::{CreateArticleSchema, UpdateArticleSchema, DeleteArticleSchema},
+    article::model::UpdateArticleModel,
     comment::schema::{CreateCommentSchema, UpdateCommentSchema, DeleteCommentSchema},
     common::rand_generate_num
 };
@@ -99,21 +100,7 @@ impl DB {
         })
     }
 
-    pub async fn create_user(&self, body: &CreateUserSchema, hashed_password: String) -> Result<SingleUserResponse> {
-        let id = rand_generate_num();
-        let user_moel = UserModel {
-            sys_id: Some(ObjectId::new()),
-            id: id,
-            username: body.username.to_owned(),
-            nickname: body.nickname.to_owned(),
-            avatar: "avatar.png".to_owned(),
-            password: hashed_password,
-            email: body.email.to_owned(),
-            is_delete:  Some(false),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-
+    pub async fn create_user(&self, user_moel: &UserModel) -> Result<SingleUserResponse> {
         //把username作为构建唯一索引
         let options = IndexOptions::builder().unique(false).build();
         let index = IndexModel::builder()
@@ -126,7 +113,7 @@ impl DB {
         };
 
         //插入数据库
-        let insert_result = match self.user_collection.insert_one(&user_moel, None).await {
+        let insert_result = match self.user_collection.insert_one(&user_moel.clone(), None).await {
             Ok(result) => result,
             Err(e) => {
                 if e.to_string()
@@ -614,7 +601,7 @@ impl DB {
         }
     }
 
-    pub async fn update_article(&self, id: &str, body: &UpdateArticleSchema) -> Result<SingleArticleResponse> {
+    pub async fn update_article(&self, id: &str, body: &UpdateArticleModel) -> Result<SingleArticleResponse> {
         let update = doc! {
             "$set": bson::to_document(&body).map_err(MongoSerializeBsonError)?,
         };

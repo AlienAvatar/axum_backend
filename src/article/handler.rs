@@ -11,6 +11,7 @@ use crate::{
     user::{model::TokenClaims, response::{MessageResponse, TokenMessageResponse}}, 
     article::schema::{FilterOptions, CreateArticleSchema, UpdateArticleSchema, FliterCommentsOptions}, 
     article::response::ArticleListResponse,
+    article::model::UpdateArticleModel,
     AppState
 };
 use scraper::{Html, Selector};
@@ -301,13 +302,149 @@ pub async fn create_article_handler(
     }
 }
 
+pub async fn update_cover_img_by_id_handle(
+    mut multipart: Multipart,
+    headers: HeaderMap,
+    State(app_state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let token = headers.get("token");
+    if(token.is_none()){
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": "Token is empty"
+        });
+        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+    }
+
+    let tokenstr = token.unwrap().to_str().unwrap();
+    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
+    {
+        Ok(token_details) => token_details,
+        Err(e) => {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format_args!("{:?}", e)
+            });
+            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
+        }
+    };
+
+    match app_state.db.get_article(&id).await.map_err(MyError::from){
+        Ok(res) => {
+            while let Some(mut field) = multipart.next_field().await.unwrap() {
+                let filename: String = field.file_name().unwrap().to_string();
+                println!("filename: {}", filename);
+                //文件类型
+                let content_type = field.content_type().unwrap().to_string();
+                println!("content_type: {}", content_type);
+                
+                if content_type.starts_with("image/") {
+                    //根据文件类型生成随机文件名(出于安全考虑)
+                    let rnd = (random::<f32>() * 1000000000 as f32) as i32;
+                     //提取"/"的index位置
+                     let index = content_type
+                        .find("/")
+                        .map(|i| i)
+                        .unwrap_or(usize::max_value());
+        
+                    //文件扩展名
+                    let mut ext_name = "xxx";
+                    if index != usize::max_value() {
+                        ext_name = &content_type[index + 1..];
+                    }
+        
+                    //文件存储路径
+                    let save_filename = format!("{}/{}.{}", "img", rnd, ext_name);
+                    //文件内容
+                    let data = field.bytes().await.unwrap();
+        
+                    println!("filename:{},content_type:{}", save_filename, content_type);
+        
+                    let _write_img = tokio::fs::write(&save_filename, &data)
+                    .await
+                    .map_err(|err| err.to_string());
+        
+                    //获取本地ip地址
+                    let url: String = format!("http://localhost:10001/show_image/{}.{}", rnd, ext_name);
+                    let update_body = UpdateArticleModel{
+                        title : res.data.article.title,
+                        author : res.data.article.author,
+                        content : res.data.article.content,
+                        support_count : res.data.article.support_count,
+                        support_users : res.data.article.support_users,
+                        category : res.data.article.category,
+                        views_count : res.data.article.views_count,
+                        cover_img: url,
+                    };
+
+                    match app_state
+                        .db
+                        .update_article(&id, &update_body)
+                        .await
+                        .map_err(MyError::from)
+                    {
+                        Ok(res) => {
+                            let response = serde_json::json!({
+                                "status": "success",
+                                "message": "url",
+                                "data": res,
+                            });
+                            return Ok((StatusCode::ACCEPTED, Json(response)));
+                        }
+                        Err(e) => {
+                            let response = serde_json::json!({
+                                "status": "error",
+                                "message": "update error",
+                            });
+                            return Ok((StatusCode::ACCEPTED, Json(response)));
+                        }
+                    }
+                 
+                }
+            }
+        }
+        Err(e) => {
+            let response = serde_json::json!({
+                "status": "error",
+                "message": "not found data",
+            });
+            return Ok((StatusCode::ACCEPTED, Json(response)));;
+        }
+    }
+    
+
+    // match app_state
+    //     .db
+    //     .update_article(&id, &update_body)
+    //     .await
+    //     .map_err(MyError::from)
+    // {
+    //     Ok(res) => Ok(Json(serde_json::to_value(res).unwrap())),
+    //     Err(e) => Err(e.into()),
+    // }
+
+    
+    let response = serde_json::json!({
+        "status": "error",
+        "message": "No file was uploaded"
+    });
+    Ok((StatusCode::ACCEPTED, Json(response)))
+}
+
 pub async fn upload_img_handle(
     mut multipart: Multipart
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     while let Some(mut field) = multipart.next_field().await.unwrap() {
+        // let name = field.name().unwrap().to_string();
+        // let mut o_file = fs::File::create(&name).await.unwrap();
+
+        let filename: String = field.file_name().unwrap().to_string();
+        println!("filename: {}", filename);
         //文件类型
         let content_type = field.content_type().unwrap().to_string();
-
+        println!("content_type: {}", content_type);
+        
         if content_type.starts_with("image/") {
             //根据文件类型生成随机文件名(出于安全考虑)
             let rnd = (random::<f32>() * 1000000000 as f32) as i32;
@@ -334,10 +471,11 @@ pub async fn upload_img_handle(
             .await
             .map_err(|err| err.to_string());
 
-            let url = format!("http:://localhost:10001/show_image/{}.{}", rnd, ext_name);
+            //获取本地ip地址
+            let url: String = format!("http://localhost:10001/show_image/{}.{}", rnd, ext_name);
             let response = serde_json::json!({
                 "status": "success",
-                "message": format!("/api/article/show_image/{}.{}", rnd, ext_name),
+                "message": url,
             });
             return Ok((StatusCode::ACCEPTED, Json(response)));
         }
@@ -346,7 +484,7 @@ pub async fn upload_img_handle(
         "status": "error",
         "message": "No file was uploaded"
     });
-    return Ok((StatusCode::ACCEPTED, Json(response)));
+    Ok((StatusCode::ACCEPTED, Json(response)))
 }
 
 pub async fn show_img_handle(
@@ -429,9 +567,27 @@ pub async fn update_article_by_id_handler(
         }
     };
 
+    // let get_article = app_state.db.get_article(&id).await;
+
+    // let mut support_user_list = get_article.unwrap().data.article.support_users;
+    // if(!support_user_list.contains(&body.support_users.to_string())){
+    //     support_user_list.push(body.support_users);
+    // }
+    
+    let update_body = UpdateArticleModel{
+        title : body.title,
+        author : body.author,
+        content : body.content,
+        support_count : body.support_count,
+        support_users : body.support_users,
+        category : body.category,
+        views_count : body.views_count,
+        cover_img: body.cover_img,
+    };
+
     match app_state
         .db
-        .update_article(&id, &body)
+        .update_article(&id, &update_body)
         .await
         .map_err(MyError::from)
     {
@@ -483,7 +639,7 @@ pub async fn update_support_count_by_id_handler(
     }
 
     support_user_list.push(body.support_user);
-    let update_body = UpdateArticleSchema{
+    let update_body = UpdateArticleModel{
         title : support_article.title,
         author : support_article.author,
         content : support_article.content,
@@ -491,6 +647,7 @@ pub async fn update_support_count_by_id_handler(
         support_users : support_user_list,
         category : support_article.category,
         views_count : support_article.views_count,
+        cover_img: support_article.cover_img,
     };
 
     match app_state

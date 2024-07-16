@@ -40,6 +40,7 @@ pub struct UpdateArticleSchema {
     pub support_count: i32,
     pub support_users: Vec<String>,
     pub views_count: i32,
+    pub cover_img: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

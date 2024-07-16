@@ -31,7 +31,9 @@ use ring::aead::{Algorithm, Nonce, Aad, OpeningKey};
 use ring::digest::{digest, Algorithm as DigestAlg, SHA256};
 use std::convert::TryInto;
 use base64;
+use crate::common::rand_generate_num;
 
+use super::model::UserModel;
 
 fn generate_token(
     id: Option<ObjectId>,
@@ -186,9 +188,22 @@ pub async fn create_user_handler(
                 })
                 .map(|hash| hash.to_string())?;
 
+                let id = rand_generate_num();
+                let user_moel = UserModel {
+                    sys_id: Some(ObjectId::new()),
+                    id: id,
+                    username: body.username.to_owned(),
+                    nickname: body.nickname.to_owned(),
+                    avatar: "https://i0.hdslb.com/bfs/article/1cda6d10ceb1118aaeb7c87f81b5d4bee1234b56.jpg@!web-article-pic.avif".to_owned(),
+                    password: hashed_password,
+                    email: body.email.to_owned(),
+                    is_delete:  Some(false),
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                };
                 match app_state
                     .db
-                    .create_user(&body, hashed_password)
+                    .create_user(&user_moel)
                     .await.map_err(MyError::from) 
                 {
                     Ok(res) => Ok((StatusCode::CREATED, Json(res))),

@@ -78,19 +78,22 @@ pub async fn show_form() -> Html<&'static str> {
 pub async fn accept_form(
     mut multipart: Multipart
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    println!("accept_form");
     while let Some(mut field) = multipart.next_field().await.unwrap() {
         // let name = field.name().unwrap().to_string();
         // let mut o_file = fs::File::create(&name).await.unwrap();
 
         let filename: String = field.file_name().unwrap().to_string();
+        println!("filename: {}", filename);
         //文件类型
         let content_type = field.content_type().unwrap().to_string();
-
+        println!("content_type: {}", content_type);
+        
         if content_type.starts_with("image/") {
             //根据文件类型生成随机文件名(出于安全考虑)
             let rnd = (random::<f32>() * 1000000000 as f32) as i32;
-             //提取"/"的index位置
-             let index = content_type
+            //提取"/"的index位置
+            let index = content_type
                 .find("/")
                 .map(|i| i)
                 .unwrap_or(usize::max_value());
@@ -115,7 +118,7 @@ pub async fn accept_form(
             //获取本地ip地址
             let my_local_ip = local_ip();  
             
-            let url: String = format!("http:://{}:10001/show_image/{}.{}", my_local_ip.unwrap(), rnd, ext_name);
+            let url: String = format!("http://localhost:10001/show_image/{}.{}", rnd, ext_name);
             let response = serde_json::json!({
                 "status": "success",
                 "message": url,

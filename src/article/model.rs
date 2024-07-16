@@ -22,3 +22,16 @@ pub struct ArticleModel {
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub updated_at: DateTime<Utc>,
 }
+
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UpdateArticleModel {
+    pub title: String,
+    pub author: String,
+    pub content: String,
+    pub category: String,
+    pub support_count: i32,
+    pub support_users: Vec<String>,
+    pub views_count: i32,
+    pub cover_img: String,
+}
