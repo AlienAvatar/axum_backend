@@ -1,0 +1,5 @@
+services:
+  rust-docker:
+    image: backend
+    ports:
+      - 10001:10001

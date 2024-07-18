@@ -80,6 +80,8 @@ async fn main() -> Result<(), MyError> {
         "http://localhost:10002".parse().unwrap(),
         "http://localhost:10003".parse().unwrap(),
         "http://localhost:10001".parse().unwrap(),
+        "http://http://47.115.218.151/:10002".parse().unwrap(),
+        "http://http://47.115.218.151/:10003".parse().unwrap(),
     ];
     
     let cors = CorsLayer::new()
