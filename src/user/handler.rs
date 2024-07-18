@@ -166,85 +166,55 @@ pub async fn create_user_handler(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let username = body.username.clone();
 
-    match app_state.db.get_user("username",&username).await.map_err(MyError::from) {
-        Ok(res) => {
-            if(username == res.data.user.username){
-                let error_response = serde_json::json!({
-                    "status": "fail",
-                    "message": format!("the same username: {}", username),
-                });
-                return Err((StatusCode::OK, Json(error_response)));
-            }else{
-                //加密
-                let salt = SaltString::generate(&mut OsRng);
-                let hashed_password = Argon2::default()
-                .hash_password(body.password.as_bytes(), &salt)
-                .map_err(|e| {
-                    let error_response = serde_json::json!({
-                        "status": "fail",
-                        "message": format!("Error while hashing password: {}", e),
-                    });
-                    (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
-                })
-                .map(|hash| hash.to_string())?;
+    let get_user_data = app_state.db.get_user("username",&username).await;
+    if(get_user_data.is_ok() && username == get_user_data.unwrap().data.user.username){
+        let error_response = serde_json::json!({
+            "status": "fail",
+            "message": format!("the same username: {}", username),
+        });
+        return Err((StatusCode::OK, Json(error_response)));
+    }else{
+        //加密
+        let salt = SaltString::generate(&mut OsRng);
+        let hashed_password = Argon2::default()
+        .hash_password(body.password.as_bytes(), &salt)
+        .map_err(|e| {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format!("Error while hashing password: {}", e),
+            });
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        })
+        .map(|hash| hash.to_string())?;
 
-                let id = rand_generate_num();
-                let user_moel = UserModel {
-                    sys_id: Some(ObjectId::new()),
-                    id: id,
-                    username: body.username.to_owned(),
-                    nickname: body.nickname.to_owned(),
-                    avatar: "https://i0.hdslb.com/bfs/article/1cda6d10ceb1118aaeb7c87f81b5d4bee1234b56.jpg@!web-article-pic.avif".to_owned(),
-                    password: hashed_password,
-                    email: body.email.to_owned(),
-                    is_delete:  Some(false),
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                };
-                match app_state
-                    .db
-                    .create_user(&user_moel)
-                    .await.map_err(MyError::from) 
-                {
-                    Ok(res) => Ok((StatusCode::CREATED, Json(res))),
-                    Err(e) => Err(e.into()),
-                }
+        let id = rand_generate_num();
+        let user_moel = UserModel {
+            sys_id: Some(ObjectId::new()),
+            id: id,
+            username: body.username.to_owned(),
+            nickname: body.nickname.to_owned(),
+            avatar: "https://i0.hdslb.com/bfs/article/1cda6d10ceb1118aaeb7c87f81b5d4bee1234b56.jpg@!web-article-pic.avif".to_owned(),
+            password: hashed_password,
+            email: body.email.to_owned(),
+            is_delete:  Some(false),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        match app_state
+            .db
+            .create_user(&user_moel)
+            .await.map_err(MyError::from) 
+            {
+                Ok(res) => Ok((StatusCode::CREATED, Json(res))),
+                Err(e) => Err(e.into()),
             }
-        }
-        Err(e) =>{
-            return Err(e.into())
-        }
     }
 }
 
 pub async fn get_user_by_username_handler(
     Path(username): Path<String>,
-    headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    print!("get_user_by_username_handler");
-    let token = headers.get("token");
-    if(token.is_none()){
-        let error_response = serde_json::json!({
-            "status": "fail",
-            "message": "Token is empty"
-        });
-        return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-    }
-
-    let tokenstr = token.unwrap().to_str().unwrap();
-    match token::verify_jwt_token(app_state.env.access_token_public_key.to_owned(), &tokenstr)
-    {
-        Ok(token_details) => token_details,
-        Err(e) => {
-            let error_response = serde_json::json!({
-                "status": "fail",
-                "message": format_args!("{:?}", e)
-            });
-            return Err((StatusCode::UNAUTHORIZED, Json(error_response)));
-        }
-    };
-
     match app_state.db.get_user("username",&username).await.map_err(MyError::from) {
         Ok(res) => Ok(Json(res)),
         Err(e) => Err(e.into()),

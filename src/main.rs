@@ -18,7 +18,7 @@ use axum::http::{
 use dotenv::dotenv;
 use error::MyError;
 use route::create_router;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{CorsLayer, Any};
 use reqwest;
 use scraper::{Html, Selector};
 use std::rc::Rc;
@@ -76,16 +76,17 @@ async fn main() -> Result<(), MyError> {
 
     let origins = [
         "http://localhost:5173".parse().unwrap(),
-        "http://localhost:8080".parse().unwrap(),
+        "http://localhost:8888".parse().unwrap(),
         "http://localhost:10002".parse().unwrap(),
-        "http://localhost:10003".parse().unwrap(),
         "http://localhost:10001".parse().unwrap(),
         "http://47.115.218.151:10002".parse().unwrap(),
         "http://47.115.218.151:10003".parse().unwrap(),
+        "http://localhost:10003".parse().unwrap(),
     ];
     
     let cors = CorsLayer::new()
         .allow_origin(origins)
+        // .allow_origin("http://localhost:8888".parse::<HeaderValue>().unwrap())
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_credentials(true)
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE, CONTENT_LANGUAGE, ACCEPT_LANGUAGE, token_header]);

@@ -102,16 +102,15 @@ impl DB {
 
     pub async fn create_user(&self, user_moel: &UserModel) -> Result<SingleUserResponse> {
         //把username作为构建唯一索引
-        let options = IndexOptions::builder().unique(false).build();
-        let index = IndexModel::builder()
-            .keys(doc! { &user_moel.username: 1 })
-            .options(options)
-            .build();
-        match self.user_collection.create_index(index, None).await {
-            Ok(_) => {}
-            Err(e) => return Err(MongoQueryError(e)),
-        };
-
+        // let options = IndexOptions::builder().unique(false).build();
+        // let index = IndexModel::builder()
+        //     .keys(doc! { &user_moel.    : 1 })
+        //     .options(options)
+        //     .build();
+        // match self.user_collection.create_index(index, None).await {
+        //     Ok(_) => {}
+        //     Err(e) => return Err(MongoQueryError(e)),
+        // };
         //插入数据库
         let insert_result = match self.user_collection.insert_one(&user_moel.clone(), None).await {
             Ok(result) => result,
@@ -130,6 +129,7 @@ impl DB {
             .inserted_id
             .as_object_id()
             .expect("issue with new _id");
+        
         //检测是否有重复id
         let user_doc = match self
             .user_collection
